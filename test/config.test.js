@@ -57,3 +57,28 @@ test("env overrides file config", async () => {
   delete process.env.PLANE_CLI_CONFIG_PATH;
   await rm(tempDir, { recursive: true, force: true });
 });
+
+test("saveConfig preserves existing keys when partial update omits them", async () => {
+  const tempDir = await mkdtemp(join(tmpdir(), "plane-cli-config-"));
+  process.env.PLANE_CLI_CONFIG_PATH = join(tempDir, "config.json");
+
+  await saveConfig({
+    baseUrl: "https://plane.example.com",
+    apiKey: "token-a",
+    workspace: "workspace-a",
+  });
+
+  await saveConfig({
+    workspace: "ops",
+  });
+
+  const config = await loadConfig();
+  assert.deepEqual(config, {
+    baseUrl: "https://plane.example.com",
+    apiKey: "token-a",
+    workspace: "ops",
+  });
+
+  delete process.env.PLANE_CLI_CONFIG_PATH;
+  await rm(tempDir, { recursive: true, force: true });
+});

@@ -51,6 +51,9 @@ export async function loadConfig() {
 
   try {
     const raw = await readFile(configPath, "utf8");
+    if (!raw.trim()) {
+      return {};
+    }
     return sanitizeConfig(JSON.parse(raw));
   } catch (error) {
     if (error && error.code === "ENOENT") {

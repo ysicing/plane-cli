@@ -1,6 +1,6 @@
 import { loadConfig, maskApiKey, resolveConfigPath, saveConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
-import { parseCommandArgs } from "../core/options.js";
+import { parseCommandArgs, pickDefined } from "../core/options.js";
 import { printData } from "../core/output.js";
 
 function configSnapshot(config, path) {
@@ -65,11 +65,11 @@ export async function runConfigCommand(args, context) {
       false
     );
 
-    const update = {
+    const update = pickDefined({
       baseUrl: parsed.values["base-url"],
       apiKey: parsed.values["api-key"],
       workspace: parsed.values.workspace,
-    };
+    });
 
     if (!update.baseUrl && !update.apiKey && !update.workspace) {
       throw new CliError("Nothing to update. Pass at least one of --base-url, --api-key, or --workspace.");
