@@ -8,6 +8,10 @@ import { printData, printTable } from "../core/output.js";
 import { basename, extname } from "node:path";
 import { readFile, stat } from "node:fs/promises";
 
+function hasHelpFlag(args) {
+  return args.includes("--help") || args.includes("-h") || args.includes("help");
+}
+
 function renderIssueList(data) {
   const rows = Array.isArray(data) ? data : data.results || [];
   printTable(rows, [
@@ -291,11 +295,122 @@ function printHelp() {
 `);
 }
 
+function printIssueCommentsHelp() {
+  console.log(`Usage:
+  plane issue comments ls --project <project-id> <issue-id>
+  plane issue comments ls GAEA-25
+  plane issue comments add --project <project-id> <issue-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments add GAEA-25 --html '<p>comment</p>' [--access <value>]
+  plane issue comments update --project <project-id> <issue-id> <comment-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments update GAEA-25 <comment-id> --html '<p>comment</p>' [--access <value>]
+`);
+}
+
+function printIssueLinksHelp() {
+  console.log(`Usage:
+  plane issue links ls --project <project-id> <issue-id>
+  plane issue links ls GAEA-25
+  plane issue links add --project <project-id> <issue-id> --url <url> [--title <text>]
+  plane issue links add GAEA-25 --url <url> [--title <text>]
+  plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
+  plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+`);
+}
+
+function printIssueRelationsHelp() {
+  console.log(`Usage:
+  plane issue relations ls --project <project-id> <issue-id>
+  plane issue relations ls GAEA-25
+  plane issue relations add --project <project-id> <issue-id> --relation-type <blocking|blocked_by|duplicate|relates_to|start_before|start_after|finish_before|finish_after> --issues <id1,id2>
+  plane issue relations add GAEA-25 --relation-type <blocking|blocked_by|duplicate|relates_to|start_before|start_after|finish_before|finish_after> --issues <id1,id2>
+`);
+}
+
+function printIssueAttachmentsHelp() {
+  console.log(`Usage:
+  plane issue attachments ls --project <project-id> <issue-id>
+  plane issue attachments ls GAEA-25
+  plane issue attachments upload --project <project-id> <issue-id> --file <path> [--name <filename>] [--type <mime>]
+  plane issue attachments upload GAEA-25 --file <path> [--name <filename>] [--type <mime>]
+`);
+}
+
+function printIssueActivitiesHelp() {
+  console.log(`Usage:
+  plane issue activities ls --project <project-id> <issue-id>
+  plane issue activities ls GAEA-25
+`);
+}
+
+function printIssueLabelsHelp() {
+  console.log(`Usage:
+  plane issue labels ls --project <project-id>
+  plane issue labels create --project <project-id> --name <name> [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+`);
+}
+
+function printIssueLabelsCreateHelp() {
+  console.log(`Usage:
+  plane issue labels create --project <project-id> --name <name> [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+`);
+}
+
+function printIssueCommentsAddHelp() {
+  console.log(`Usage:
+  plane issue comments add --project <project-id> <issue-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments add GAEA-25 --html '<p>comment</p>' [--access <value>]
+`);
+}
+
+function printIssueCommentsUpdateHelp() {
+  console.log(`Usage:
+  plane issue comments update --project <project-id> <issue-id> <comment-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments update GAEA-25 <comment-id> --html '<p>comment</p>' [--access <value>]
+`);
+}
+
+function printIssueLinksAddHelp() {
+  console.log(`Usage:
+  plane issue links add --project <project-id> <issue-id> --url <url> [--title <text>]
+  plane issue links add GAEA-25 --url <url> [--title <text>]
+`);
+}
+
+function printIssueLinksUpdateHelp() {
+  console.log(`Usage:
+  plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
+  plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+`);
+}
+
+function printIssueRelationsAddHelp() {
+  console.log(`Usage:
+  plane issue relations add --project <project-id> <issue-id> --relation-type <blocking|blocked_by|duplicate|relates_to|start_before|start_after|finish_before|finish_after> --issues <id1,id2>
+  plane issue relations add GAEA-25 --relation-type <blocking|blocked_by|duplicate|relates_to|start_before|start_after|finish_before|finish_after> --issues <id1,id2>
+`);
+}
+
+function printIssueAttachmentsUploadHelp() {
+  console.log(`Usage:
+  plane issue attachments upload --project <project-id> <issue-id> --file <path> [--name <filename>] [--type <mime>]
+  plane issue attachments upload GAEA-25 --file <path> [--name <filename>] [--type <mime>]
+`);
+}
+
 async function runIssueLabelsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "create") {
+      printIssueLabelsCreateHelp();
+      return;
+    }
+    printIssueLabelsHelp();
     return;
   }
 
@@ -353,8 +468,21 @@ async function runIssueLabelsCommand(issueClient, args, context) {
 async function runIssueCommentsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "add") {
+      printIssueCommentsAddHelp();
+      return;
+    }
+    if (subcommand === "update") {
+      printIssueCommentsUpdateHelp();
+      return;
+    }
+    printIssueCommentsHelp();
     return;
   }
 
@@ -439,8 +567,13 @@ async function runIssueCommentsCommand(issueClient, args, context) {
 async function runIssueActivitiesCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    printIssueActivitiesHelp();
     return;
   }
 
@@ -478,8 +611,21 @@ async function runIssueActivitiesCommand(issueClient, args, context) {
 async function runIssueLinksCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "add") {
+      printIssueLinksAddHelp();
+      return;
+    }
+    if (subcommand === "update") {
+      printIssueLinksUpdateHelp();
+      return;
+    }
+    printIssueLinksHelp();
     return;
   }
 
@@ -553,8 +699,17 @@ async function runIssueLinksCommand(issueClient, args, context) {
 async function runIssueRelationsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "add") {
+      printIssueRelationsAddHelp();
+      return;
+    }
+    printIssueRelationsHelp();
     return;
   }
 
@@ -625,8 +780,17 @@ async function uploadAttachmentBinary(uploadData, filePath, fileName, mimeType) 
 async function runIssueAttachmentsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "upload") {
+      printIssueAttachmentsUploadHelp();
+      return;
+    }
+    printIssueAttachmentsHelp();
     return;
   }
 
@@ -699,7 +863,36 @@ async function runIssueAttachmentsCommand(issueClient, args, context) {
 export async function runIssueCommand(args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
+    printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "labels") {
+      printIssueLabelsHelp();
+      return;
+    }
+    if (subcommand === "comments") {
+      printIssueCommentsHelp();
+      return;
+    }
+    if (subcommand === "activities") {
+      printIssueActivitiesHelp();
+      return;
+    }
+    if (subcommand === "links") {
+      printIssueLinksHelp();
+      return;
+    }
+    if (subcommand === "relations") {
+      printIssueRelationsHelp();
+      return;
+    }
+    if (subcommand === "attachments") {
+      printIssueAttachmentsHelp();
+      return;
+    }
     printHelp();
     return;
   }

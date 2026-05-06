@@ -5,7 +5,7 @@ import { PlaneClient } from "../core/http.js";
 import { printData } from "../core/output.js";
 
 export async function runMeCommand(args, context) {
-  if (args.includes("--help") || args.includes("help")) {
+  if (args.includes("--help") || args.includes("-h") || args.includes("help")) {
     console.log("Usage:\n  plane me");
     return;
   }

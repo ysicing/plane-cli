@@ -22,12 +22,12 @@ function workspaceRows(config) {
 export async function runWorkspaceCommand(args, context) {
   const [subcommand = "ls", ...rest] = args;
 
-  if (subcommand === "--help" || subcommand === "help") {
+  if (subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
     return;
   }
 
-  if (rest.includes("--help") || rest.includes("help")) {
+  if (rest.includes("--help") || rest.includes("-h") || rest.includes("help")) {
     printHelp();
     return;
   }

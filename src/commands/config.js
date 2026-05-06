@@ -21,11 +21,24 @@ function printHelp() {
 `);
 }
 
+function printGetHelp() {
+  console.log(`Usage:
+  plane config get
+  plane config get <baseUrl|apiKey|workspace|knownWorkspaces>
+`);
+}
+
+function printSetHelp() {
+  console.log(`Usage:
+  plane config set [--base-url <url>] [--api-key <key>] [--workspace <slug>]
+`);
+}
+
 export async function runConfigCommand(args, context) {
   const [subcommand = "list", ...rest] = args;
   const path = resolveConfigPath();
 
-  if (subcommand === "--help" || subcommand === "help") {
+  if (subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
     return;
   }
@@ -37,6 +50,11 @@ export async function runConfigCommand(args, context) {
   }
 
   if (subcommand === "get") {
+    if (rest.includes("--help") || rest.includes("-h") || rest.includes("help")) {
+      printGetHelp();
+      return;
+    }
+
     const [key] = rest;
     const config = await loadConfig();
     const snapshot = configSnapshot(config, path);
@@ -55,6 +73,11 @@ export async function runConfigCommand(args, context) {
   }
 
   if (subcommand === "set") {
+    if (rest.includes("--help") || rest.includes("-h") || rest.includes("help")) {
+      printSetHelp();
+      return;
+    }
+
     const parsed = parseCommandArgs(
       rest,
       {

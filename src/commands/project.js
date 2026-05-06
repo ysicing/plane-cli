@@ -5,6 +5,10 @@ import { PlaneClient } from "../core/http.js";
 import { ensureValue, parseCommandArgs, pickDefined } from "../core/options.js";
 import { printData, printTable } from "../core/output.js";
 
+function hasHelpFlag(args) {
+  return args.includes("--help") || args.includes("-h") || args.includes("help");
+}
+
 function createProjectRender(data) {
   const rows = Array.isArray(data) ? data : data.results || [];
   printTable(rows, [
@@ -125,11 +129,60 @@ function printHelp() {
 `);
 }
 
+function printProjectMembersHelp() {
+  console.log(`Usage:
+  plane project members ls --project <project-id>
+  plane project members workspace
+  plane project members add --project <project-id> --member <user-id> --role <admin|member|guest>
+`);
+}
+
+function printProjectMembersAddHelp() {
+  console.log(`Usage:
+  plane project members add --project <project-id> --member <user-id> --role <admin|member|guest>
+`);
+}
+
+function printProjectFeaturesHelp() {
+  console.log(`Usage:
+  plane project features get <project-id>
+  plane project features set <project-id> [--issue-types on|off] [--epics on|off] [--milestones on|off] [--time-tracking on|off] [--auto-transition on|off] [--auto-assign on|off] [--auto-worklog on|off] [--require-worklog-before-completion on|off]
+  plane project features enable-all <project-id>
+`);
+}
+
+function printProjectFeaturesSetHelp() {
+  console.log(`Usage:
+  plane project features set <project-id> [--issue-types on|off] [--epics on|off] [--milestones on|off] [--time-tracking on|off] [--auto-transition on|off] [--auto-assign on|off] [--auto-worklog on|off] [--require-worklog-before-completion on|off]
+`);
+}
+
+function printProjectCreateHelp() {
+  console.log(`Usage:
+  plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
+`);
+}
+
+function printProjectUpdateHelp() {
+  console.log(`Usage:
+  plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
+`);
+}
+
 async function runProjectMembersCommand(projectClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "add") {
+      printProjectMembersAddHelp();
+      return;
+    }
+    printProjectMembersHelp();
     return;
   }
 
@@ -189,8 +242,17 @@ async function runProjectMembersCommand(projectClient, args, context) {
 async function runProjectFeaturesCommand(projectClient, args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "set") {
+      printProjectFeaturesSetHelp();
+      return;
+    }
+    printProjectFeaturesHelp();
     return;
   }
 
@@ -270,7 +332,28 @@ async function runProjectFeaturesCommand(projectClient, args, context) {
 export async function runProjectCommand(args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
+    printHelp();
+    return;
+  }
+
+  if (hasHelpFlag(rest)) {
+    if (subcommand === "members") {
+      printProjectMembersHelp();
+      return;
+    }
+    if (subcommand === "features") {
+      printProjectFeaturesHelp();
+      return;
+    }
+    if (subcommand === "create") {
+      printProjectCreateHelp();
+      return;
+    }
+    if (subcommand === "update") {
+      printProjectUpdateHelp();
+      return;
+    }
     printHelp();
     return;
   }

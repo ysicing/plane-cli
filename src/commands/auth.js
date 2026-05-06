@@ -49,7 +49,7 @@ function resolveWorkspaceToSave({ explicitWorkspace, existingWorkspace, userWork
 export async function runAuthCommand(args, context) {
   const [subcommand, ...rest] = args;
 
-  if (!subcommand || subcommand === "--help" || subcommand === "help") {
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
     return;
   }
@@ -58,7 +58,7 @@ export async function runAuthCommand(args, context) {
     throw new CliError(`Unknown auth subcommand: ${subcommand}`);
   }
 
-  if (rest.includes("--help") || rest.includes("help")) {
+  if (rest.includes("--help") || rest.includes("-h") || rest.includes("help")) {
     printHelp();
     return;
   }
