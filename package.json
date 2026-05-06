@@ -1,0 +1,42 @@
+{
+  "name": "@ysicing/plane-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Node.js CLI for managing Plane via the external API",
+  "license": "UNLICENSED",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/ysicing/plane-cli.git"
+  },
+  "homepage": "https://github.com/ysicing/plane-cli#readme",
+  "bugs": {
+    "url": "https://github.com/ysicing/plane-cli/issues"
+  },
+  "keywords": [
+    "plane",
+    "cli",
+    "project-management",
+    "ldap",
+    "api"
+  ],
+  "files": [
+    "src",
+    "README.md"
+  ],
+  "bin": {
+    "plane": "./src/cli.js"
+  },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "scripts": {
+    "start": "node ./src/cli.js",
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run",
+    "prepublishOnly": "npm test && npm run pack:check"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}
