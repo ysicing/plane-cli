@@ -12,7 +12,7 @@ description: 管理 Plane 工作项与项目能力。当用户提到工作项标
 - 优先使用 `plane` 命令，不要手写 curl 直接调 Plane API
 - 自动化消费结果时，优先加 `--json`
 - 用户消息中只要出现工作项标识（如 `GAEA-30`、`TEST-12`），优先先查询该工作项
-- 如果提交代码，commit message 必须包含工作项标识与工时，格式：
+- 如果提交代码，commit message 必须包含带 `#` 前缀的工作项标识与工时，格式：
 
 ```text
 <type>(scope): <summary> #<工作项标识> Cost:<工时>
@@ -82,6 +82,7 @@ plane workspace use <slug>
 
 - 只有在**实际提交代码**时才追加 `#<工作项标识> Cost:<工时>`
 - 若本次改动没有明确工作项标识，则不要伪造工作项标识
+- 工作项标识在 commit message 中必须写成 `#GAEA-30`、`#TEST-12` 这种形式，不能省略 `#`
 - 若本次改动明确只对应一个工作项，则追加一个标识：
 
 ```text

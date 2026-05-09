@@ -1,6 +1,6 @@
 {
   "name": "@ysicing/plane-cli",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "type": "module",
   "description": "Node.js CLI for managing Plane via the external API",
   "license": "UNLICENSED",
