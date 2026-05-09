@@ -1,6 +1,6 @@
 # plane-cli
 
-`plane-cli` 是一个基于 Plane 外部 API（`/api/v1`）的命令行工具，用于在终端中管理 workspace、project 和 work item（issue）。
+`plane-cli` 是一个基于 Plane 外部 API（`/api/v1`）的命令行工具，用于在终端中管理 workspace、project 和 work item（issue），并内置 Codex skill `plane`。
 
 ## 特性
 

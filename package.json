@@ -1,6 +1,6 @@
 {
   "name": "@ysicing/plane-cli",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "type": "module",
   "description": "Node.js CLI for managing Plane via the external API",
   "license": "UNLICENSED",
@@ -21,7 +21,9 @@
   ],
   "files": [
     "src",
-    "README.md"
+    "README.md",
+    "skills",
+    "scripts"
   ],
   "bin": {
     "plane": "./src/cli.js"
@@ -31,6 +33,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
+    "postinstall": "node ./scripts/install-skills.js",
     "start": "node ./src/cli.js",
     "test": "node --test",
     "pack:check": "npm pack --dry-run",
