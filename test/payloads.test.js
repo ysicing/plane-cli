@@ -21,7 +21,7 @@ import {
   parseIssueKey,
   resolveAssigneeRefs,
 } from "../src/commands/issue.js";
-import { buildMyWorkItemQuery } from "../src/commands/me.js";
+import { aggregateWorkspaceSummaries, buildMeSummary, buildMyWorkItemQuery } from "../src/commands/me.js";
 
 test("buildProjectPayload keeps supported fields only", () => {
   const payload = buildProjectPayload({
@@ -222,6 +222,126 @@ test("buildProjectListQuery maps pagination and resource filters", () => {
       search: "release",
     }
   );
+});
+
+test("buildMeSummary aggregates my items and accessible stats", () => {
+  const summary = buildMeSummary(
+    [
+      {
+        id: "i1",
+        priority: "high",
+        state: "todo",
+        updated_at: "2026-05-10T08:00:00+08:00",
+        completed_at: null,
+      },
+      {
+        id: "i2",
+        priority: "low",
+        state: "done",
+        updated_at: "2026-05-06T08:00:00+08:00",
+        completed_at: "2026-05-07T09:00:00+08:00",
+      },
+      {
+        id: "i3",
+        priority: "low",
+        state: "todo",
+        updated_at: "2026-05-01T08:00:00+08:00",
+        completed_at: null,
+      },
+    ],
+    [
+      {
+        project_identifier: "DEMO",
+        project_name: "demo",
+        total: 3,
+        assigned_total: 2,
+        pending_total: 2,
+        completed_total: 1,
+        cancelled_total: 0,
+        overdue_total: 1,
+      },
+    ],
+    new Date("2026-05-10T20:00:00+08:00")
+  );
+
+  assert.equal(summary.my_work_items.all, 3);
+  assert.equal(summary.my_work_items.updated_today, 1);
+  assert.equal(summary.my_work_items.updated_this_week, 2);
+  assert.equal(summary.my_work_items.completed_this_week, 1);
+  assert.deepEqual(summary.my_work_items.by_priority, { high: 1, low: 2 });
+  assert.equal(summary.accessible_work_items.project_count, 1);
+  assert.equal(summary.accessible_work_items.totals.total, 3);
+  assert.equal(summary.accessible_work_items.totals.assigned_total, 2);
+  assert.equal(summary.accessible_work_items.totals.overdue_total, 1);
+});
+
+test("aggregateWorkspaceSummaries combines per-workspace totals", () => {
+  const aggregate = aggregateWorkspaceSummaries(
+    [
+      {
+        workspace: "demo",
+        summary: {
+          my_work_items: {
+            all: 2,
+            updated_today: 1,
+            updated_this_week: 2,
+            completed_this_week: 1,
+            by_priority: { high: 1, low: 1 },
+            by_state: { todo: 1, done: 1 },
+          },
+          accessible_work_items: {
+            project_count: 1,
+            totals: {
+              total: 4,
+              assigned_total: 2,
+              pending_total: 2,
+              completed_total: 1,
+              cancelled_total: 0,
+              overdue_total: 0,
+            },
+            projects: [{ project_identifier: "D1" }],
+          },
+        },
+      },
+      {
+        workspace: "demo2",
+        summary: {
+          my_work_items: {
+            all: 1,
+            updated_today: 1,
+            updated_this_week: 1,
+            completed_this_week: 0,
+            by_priority: { medium: 1 },
+            by_state: { started: 1 },
+          },
+          accessible_work_items: {
+            project_count: 2,
+            totals: {
+              total: 8,
+              assigned_total: 1,
+              pending_total: 6,
+              completed_total: 2,
+              cancelled_total: 0,
+              overdue_total: 1,
+            },
+            projects: [{ project_identifier: "D2" }, { project_identifier: "D3" }],
+          },
+        },
+      },
+    ],
+    new Date("2026-05-10T20:00:00+08:00")
+  );
+
+  assert.equal(aggregate.workspace_count, 2);
+  assert.equal(aggregate.my_work_items.all, 3);
+  assert.equal(aggregate.my_work_items.updated_today, 2);
+  assert.equal(aggregate.my_work_items.completed_this_week, 1);
+  assert.deepEqual(aggregate.my_work_items.by_priority, { high: 1, low: 1, medium: 1 });
+  assert.equal(aggregate.accessible_work_items.project_count, 3);
+  assert.equal(aggregate.accessible_work_items.totals.total, 12);
+  assert.equal(aggregate.accessible_work_items.totals.assigned_total, 3);
+  assert.equal(aggregate.accessible_work_items.projects.length, 3);
+  assert.equal(aggregate.accessible_work_items.projects[0].workspace, "demo");
 });
 
 test("resolveAssigneeRefs resolves ids emails and names", () => {
