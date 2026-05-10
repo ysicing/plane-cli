@@ -95,6 +95,8 @@ printf '%s' 'your-password' | plane auth login \
 plane workspace current
 plane workspace ls
 plane workspace use <slug>
+plane workspace invitations ls
+plane workspace stickies ls
 ```
 
 ## 命令概览
@@ -130,13 +132,20 @@ plane project features set <project-id> --epics on --milestones on --auto-transi
 plane project features enable-all <project-id>
 
 plane project states ls --project <project-id>
+plane project states create --project <project-id> --name Review --color '#123456' --group started
 plane project cycles ls --project <project-id> --view current
+plane project cycles create --project <project-id> --name Sprint-1 --start-date 2026-05-11 --end-date 2026-05-18
 plane project cycles issues --project <project-id> --cycle <cycle-id>
 plane project modules ls --project <project-id>
+plane project modules create --project <project-id> --name Backend --start-date 2026-05-11 --end-date 2026-05-18
 plane project modules issues --project <project-id> --module <module-id>
 plane project epics ls --project <project-id>
+plane project epics create --project <project-id> --name Release-Epic
 plane project epics issues --project <project-id> --epic <epic-id>
 plane project milestones ls --project <project-id> --search release
+plane project milestones create --project <project-id> --title Release-1
+plane project intake ls --project <project-id>
+plane project intake create --project <project-id> --name "Incoming request"
 ```
 
 ### Issue / Work Item 命令
@@ -159,6 +168,8 @@ plane issue update --project <project-id> <issue-id> --priority high
 ```bash
 plane issue labels ls --project <project-id>
 plane issue labels create --project <project-id> --name backend --color '#ff6600'
+plane issue labels update --project <project-id> <label-id> --name backend-v2
+plane issue labels delete --project <project-id> <label-id> --confirm
 ```
 
 ### Issue Comments
@@ -167,6 +178,7 @@ plane issue labels create --project <project-id> --name backend --color '#ff6600
 plane issue comments ls GAEA-25
 plane issue comments add GAEA-25 --html '<p>Need follow-up</p>'
 plane issue comments update GAEA-25 <comment-id> --html '<p>Updated</p>'
+plane issue comments delete GAEA-25 <comment-id> --confirm
 ```
 
 ### Issue Activities
@@ -181,6 +193,7 @@ plane issue activities ls GAEA-25
 plane issue links ls GAEA-25
 plane issue links add GAEA-25 --url 'https://example.com/doc'
 plane issue links update GAEA-25 <link-id> --url 'https://example.com/doc-v2'
+plane issue links delete GAEA-25 <link-id> --confirm
 ```
 
 ### Issue Epic / Milestone
@@ -204,6 +217,7 @@ plane issue relations add GAEA-25 --relation-type blocking --issues '<other-issu
 ```bash
 plane issue attachments ls GAEA-25
 plane issue attachments upload GAEA-25 --file ./spec.pdf
+plane issue attachments delete GAEA-25 <attachment-id> --confirm
 ```
 
 ## 交互与参数约定
@@ -213,13 +227,13 @@ plane issue attachments upload GAEA-25 --file ./spec.pdf
 对于以下命令，若目标是已存在的 issue，可直接使用 `GAEA-25` 这类 key，而无需显式提供 `--project` 与 issue UUID：
 
 - `issue get`
-- `issue comments ls/add/update`
+- `issue comments ls/add/update/delete`
 - `issue activities ls`
-- `issue links ls/add/update`
+- `issue links ls/add/update/delete`
 - `issue epic set/clear`
 - `issue milestone set/clear`
 - `issue relations ls/add`
-- `issue attachments ls/upload`
+- `issue attachments ls/upload/delete`
 
 ### 指定 Assignee
 
@@ -248,6 +262,7 @@ plane issue attachments upload --help
 - 当前不提供危险删除命令
 - 当前不自动回收服务端 API Token
 - `project members ls` 受限于 Plane `api/v1` 返回结构，仅返回用户资料，不包含完整的 `ProjectMember` 记录字段
+- `project members update/delete` 依赖 project-member 记录 ID；当前 Plane `api/v1` 的 list 响应不直接暴露该记录 ID，通常需要配合后端侧排查或额外 API 支持
 - `project create` 在部分 Plane 实例上对 `project_lead/default_assignee` 的校验较严格，CLI 已采用“两段式创建”兼容该行为
 - `project features set`、`issue attachments upload` 在启用读副本的实例上，可能存在短暂回读延迟
 

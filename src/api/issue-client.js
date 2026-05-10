@@ -19,6 +19,10 @@ export class IssueClient {
     return this.client.patch(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/`), body);
   }
 
+  delete(projectId, issueId) {
+    return this.client.delete(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/`));
+  }
+
   getByKey(projectIdentifier, issueIdentifier, query = {}) {
     return this.client.get(this.client.workspacePath(`/work-items/${projectIdentifier}-${issueIdentifier}/`), query);
   }
@@ -51,6 +55,14 @@ export class IssueClient {
     return this.client.post(this.client.workspacePath(`/projects/${projectId}/labels/`), body);
   }
 
+  updateLabel(projectId, labelId, body) {
+    return this.client.patch(this.client.workspacePath(`/projects/${projectId}/labels/${labelId}/`), body);
+  }
+
+  deleteLabel(projectId, labelId) {
+    return this.client.delete(this.client.workspacePath(`/projects/${projectId}/labels/${labelId}/`));
+  }
+
   listComments(projectId, issueId, query = {}) {
     return this.client.get(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/comments/`), query);
   }
@@ -63,6 +75,12 @@ export class IssueClient {
     return this.client.patch(
       this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/comments/${commentId}/`),
       body
+    );
+  }
+
+  deleteComment(projectId, issueId, commentId) {
+    return this.client.delete(
+      this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/comments/${commentId}/`)
     );
   }
 
@@ -85,6 +103,10 @@ export class IssueClient {
     return this.client.patch(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/links/${linkId}/`), body);
   }
 
+  deleteLink(projectId, issueId, linkId) {
+    return this.client.delete(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/links/${linkId}/`));
+  }
+
   listRelations(projectId, issueId) {
     return this.client.get(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/relations/`));
   }
@@ -105,6 +127,12 @@ export class IssueClient {
     return this.client.patch(
       this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/attachments/${attachmentId}/`),
       body
+    );
+  }
+
+  deleteAttachment(projectId, issueId, attachmentId) {
+    return this.client.delete(
+      this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/attachments/${attachmentId}/`)
     );
   }
 }

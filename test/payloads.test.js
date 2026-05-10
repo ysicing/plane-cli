@@ -8,6 +8,7 @@ import {
   parseToggle,
   splitProjectCreatePayload,
 } from "../src/commands/project.js";
+import { buildIntakeIssueCreatePayload, buildIntakeIssueUpdatePayload } from "../src/commands/project-intake.js";
 import { buildProjectListQuery } from "../src/commands/project-lists.js";
 import {
   buildIssueCommentPayload,
@@ -21,6 +22,7 @@ import {
   parseIssueKey,
   resolveAssigneeRefs,
 } from "../src/commands/issue.js";
+import { buildStickyPayload, buildWorkspaceInvitationPayload, normalizeWorkspaceRole } from "../src/commands/workspace-resources.js";
 import { aggregateWorkspaceSummaries, buildMeSummary, buildMyWorkItemQuery } from "../src/commands/me.js";
 
 test("buildProjectPayload keeps supported fields only", () => {
@@ -41,6 +43,82 @@ test("buildProjectPayload keeps supported fields only", () => {
   });
 });
 
+test("buildWorkspaceInvitationPayload maps invite fields", () => {
+  assert.deepEqual(
+    buildWorkspaceInvitationPayload({
+      email: "user@example.com",
+      role: "member",
+    }),
+    {
+      email: "user@example.com",
+      role: 15,
+    }
+  );
+});
+
+test("buildStickyPayload keeps supported sticky fields", () => {
+  assert.deepEqual(
+    buildStickyPayload({
+      name: "sticky",
+      html: "<p>note</p>",
+      color: "#fff",
+      "background-color": "#000",
+      "sort-order": "10",
+    }),
+    {
+      name: "sticky",
+      description_html: "<p>note</p>",
+      color: "#fff",
+      background_color: "#000",
+      sort_order: "10",
+    }
+  );
+});
+
+test("buildIntakeIssueCreatePayload nests issue fields", () => {
+  assert.deepEqual(
+    buildIntakeIssueCreatePayload({
+      name: "new intake",
+      description: "desc",
+      priority: "high",
+    }),
+    {
+      issue: {
+        name: "new intake",
+        description: "desc",
+        priority: "high",
+      },
+    }
+  );
+});
+
+test("buildIntakeIssueUpdatePayload maps intake and nested issue fields", () => {
+  assert.deepEqual(
+    buildIntakeIssueUpdatePayload({
+      status: "1",
+      "snoozed-till": "2026-05-11T10:00:00+08:00",
+      "duplicate-to": "issue-2",
+      source: "email",
+      "source-email": "bot@example.com",
+      name: "updated",
+      description: "updated desc",
+      priority: "low",
+    }),
+    {
+      status: "1",
+      snoozed_till: "2026-05-11T10:00:00+08:00",
+      duplicate_to: "issue-2",
+      source: "email",
+      source_email: "bot@example.com",
+      issue: {
+        name: "updated",
+        description: "updated desc",
+        priority: "low",
+      },
+    }
+  );
+});
+
 test("splitProjectCreatePayload separates create and post-create update fields", () => {
   assert.deepEqual(
     splitProjectCreatePayload({
@@ -59,6 +137,29 @@ test("splitProjectCreatePayload separates create and post-create update fields",
         description: "hello",
         project_lead: "u1",
         default_assignee: "u2",
+      },
+    }
+  );
+});
+
+test("splitProjectCreatePayload keeps project view toggles in post-create update", () => {
+  assert.deepEqual(
+    splitProjectCreatePayload({
+      name: "Demo",
+      identifier: "demo",
+      "cycle-view": "on",
+      "module-view": "off",
+      "intake-view": "true",
+    }),
+    {
+      createPayload: {
+        name: "Demo",
+        identifier: "DEMO",
+      },
+      postCreateUpdatePayload: {
+        cycle_view: true,
+        module_view: false,
+        intake_view: true,
       },
     }
   );
@@ -363,6 +464,12 @@ test("normalizeProjectRole maps role names to numeric values", () => {
   assert.equal(normalizeProjectRole("admin"), 20);
   assert.equal(normalizeProjectRole("member"), 15);
   assert.equal(normalizeProjectRole("guest"), 5);
+});
+
+test("normalizeWorkspaceRole maps role names to numeric values", () => {
+  assert.equal(normalizeWorkspaceRole("admin"), 20);
+  assert.equal(normalizeWorkspaceRole("member"), 15);
+  assert.equal(normalizeWorkspaceRole("guest"), 5);
 });
 
 test("parseToggle supports on off values", () => {

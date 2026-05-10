@@ -106,4 +106,8 @@ export class PlaneClient {
   patch(path, body) {
     return this.request("PATCH", path, { body });
   }
+
+  delete(path) {
+    return this.request("DELETE", path);
+  }
 }

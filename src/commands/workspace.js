@@ -1,3 +1,4 @@
+import { printWorkspaceResourceHelp, runWorkspaceResourcesCommand } from "./workspace-resources.js";
 import { loadConfig, saveConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
 import { parseCommandArgs } from "../core/options.js";
@@ -8,6 +9,10 @@ function printHelp() {
   plane workspace ls
   plane workspace current
   plane workspace use <slug> [--force]
+  plane workspace invitations ls
+  plane workspace invitations create --email <email> [--role <admin|member|guest>]
+  plane workspace stickies ls
+  plane workspace stickies create --name <name>
 `);
 }
 
@@ -28,7 +33,16 @@ export async function runWorkspaceCommand(args, context) {
   }
 
   if (rest.includes("--help") || rest.includes("-h") || rest.includes("help")) {
+    if (subcommand === "invitations" || subcommand === "stickies") {
+      printWorkspaceResourceHelp();
+      return;
+    }
     printHelp();
+    return;
+  }
+
+  if (subcommand === "invitations" || subcommand === "stickies") {
+    await runWorkspaceResourcesCommand([subcommand, ...rest], context);
     return;
   }
 

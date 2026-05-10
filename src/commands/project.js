@@ -1,4 +1,5 @@
 import { ProjectClient } from "../api/project-client.js";
+import { printProjectIntakeHelp, runProjectIntakeCommand } from "./project-intake.js";
 import { printProjectListHelp, runProjectListCommand } from "./project-lists.js";
 import { resolveRuntimeConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
@@ -39,13 +40,29 @@ const PROJECT_ROLE_MAP = {
 };
 
 export function buildProjectPayload(values) {
-  return pickDefined({
+  const payload = pickDefined({
     name: values.name,
     identifier: values.identifier ? values.identifier.toUpperCase() : undefined,
     description: values.description,
     project_lead: values["project-lead"],
     default_assignee: values["default-assignee"],
   });
+
+  const toggleFields = {
+    "cycle-view": "cycle_view",
+    "module-view": "module_view",
+    "issue-views-view": "issue_views_view",
+    "page-view": "page_view",
+    "intake-view": "intake_view",
+  };
+
+  for (const [option, field] of Object.entries(toggleFields)) {
+    if (values[option] !== undefined) {
+      payload[field] = parseToggle(values[option], `--${option}`);
+    }
+  }
+
+  return payload;
 }
 
 export function splitProjectCreatePayload(values) {
@@ -58,6 +75,11 @@ export function splitProjectCreatePayload(values) {
     description: fullPayload.description,
     project_lead: fullPayload.project_lead,
     default_assignee: fullPayload.default_assignee,
+    cycle_view: fullPayload.cycle_view,
+    module_view: fullPayload.module_view,
+    issue_views_view: fullPayload.issue_views_view,
+    page_view: fullPayload.page_view,
+    intake_view: fullPayload.intake_view,
   });
 
   return { createPayload, postCreateUpdatePayload };
@@ -133,8 +155,11 @@ function printHelp() {
   plane project epics ls --project <project-id>
   plane project epics issues --project <project-id> --epic <epic-id>
   plane project milestones ls --project <project-id> [--search <text>]
-  plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
-  plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
+  plane project intake ls --project <project-id>
+  plane project intake create --project <project-id> --name <name>
+  plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
+  plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
+  plane project delete <project-id> --confirm
 `);
 }
 
@@ -143,12 +168,20 @@ function printProjectMembersHelp() {
   plane project members ls --project <project-id>
   plane project members workspace
   plane project members add --project <project-id> --member <user-id> --role <admin|member|guest>
+  plane project members update --project <project-id> <member-id> --role <admin|member|guest>
+  plane project members delete --project <project-id> <member-id> --confirm
 `);
 }
 
 function printProjectMembersAddHelp() {
   console.log(`Usage:
   plane project members add --project <project-id> --member <user-id> --role <admin|member|guest>
+`);
+}
+
+function printProjectMembersUpdateHelp() {
+  console.log(`Usage:
+  plane project members update --project <project-id> <member-id> --role <admin|member|guest>
 `);
 }
 
@@ -168,13 +201,13 @@ function printProjectFeaturesSetHelp() {
 
 function printProjectCreateHelp() {
   console.log(`Usage:
-  plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
+  plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
 `);
 }
 
 function printProjectUpdateHelp() {
   console.log(`Usage:
-  plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
+  plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
 `);
 }
 
@@ -189,6 +222,10 @@ async function runProjectMembersCommand(projectClient, args, context) {
   if (hasHelpFlag(rest)) {
     if (subcommand === "add") {
       printProjectMembersAddHelp();
+      return;
+    }
+    if (subcommand === "update") {
+      printProjectMembersUpdateHelp();
       return;
     }
     printProjectMembersHelp();
@@ -242,6 +279,46 @@ async function runProjectMembersCommand(projectClient, args, context) {
       role: normalizeProjectRole(parsed.values.role),
     });
     printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "update") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        role: { type: "string" },
+      }
+    );
+
+    ensureValue(parsed.values.project, "Project ID is required.");
+    ensureValue(parsed.positionals[0], "Member ID is required.");
+    ensureValue(parsed.values.role, "Role is required.");
+
+    const result = await projectClient.updateMember(parsed.values.project, parsed.positionals[0], {
+      role: normalizeProjectRole(parsed.values.role),
+    });
+    printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.values.project, "Project ID is required.");
+    ensureValue(parsed.positionals[0], "Member ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+
+    await projectClient.deleteMember(parsed.values.project, parsed.positionals[0]);
+    printData({ deleted: true, id: parsed.positionals[0] }, context.output);
     return;
   }
 
@@ -359,6 +436,10 @@ export async function runProjectCommand(args, context) {
       printProjectListHelp();
       return;
     }
+    if (subcommand === "intake") {
+      printProjectIntakeHelp();
+      return;
+    }
     if (subcommand === "create") {
       printProjectCreateHelp();
       return;
@@ -386,6 +467,11 @@ export async function runProjectCommand(args, context) {
 
   if (["states", "cycles", "modules", "epics", "milestones"].includes(subcommand)) {
     await runProjectListCommand(projectClient, subcommand, rest, context);
+    return;
+  }
+
+  if (subcommand === "intake") {
+    await runProjectIntakeCommand(rest, context);
     return;
   }
 
@@ -457,6 +543,11 @@ export async function runProjectCommand(args, context) {
         description: { type: "string" },
         "project-lead": { type: "string" },
         "default-assignee": { type: "string" },
+        "cycle-view": { type: "string" },
+        "module-view": { type: "string" },
+        "issue-views-view": { type: "string" },
+        "page-view": { type: "string" },
+        "intake-view": { type: "string" },
       },
       false
     );
@@ -486,6 +577,11 @@ export async function runProjectCommand(args, context) {
         description: { type: "string" },
         "project-lead": { type: "string" },
         "default-assignee": { type: "string" },
+        "cycle-view": { type: "string" },
+        "module-view": { type: "string" },
+        "issue-views-view": { type: "string" },
+        "page-view": { type: "string" },
+        "intake-view": { type: "string" },
       },
       false
     );
@@ -497,6 +593,24 @@ export async function runProjectCommand(args, context) {
 
     const result = await projectClient.update(projectId, payload);
     printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.positionals[0], "Project ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+
+    await projectClient.delete(parsed.positionals[0]);
+    printData({ deleted: true, id: parsed.positionals[0] }, context.output);
     return;
   }
 

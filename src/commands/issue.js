@@ -280,12 +280,16 @@ function printHelp() {
   plane issue search --query <text> [--project <project-id>] [--limit <n>] [--workspace-search]
   plane issue labels ls --project <project-id>
   plane issue labels create --project <project-id> --name <name> [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+  plane issue labels update --project <project-id> <label-id> [--name <name>] [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+  plane issue labels delete --project <project-id> <label-id> --confirm
   plane issue comments ls --project <project-id> <issue-id>
   plane issue comments ls GAEA-25
   plane issue comments add --project <project-id> <issue-id> --html '<p>comment</p>' [--access <value>]
   plane issue comments add GAEA-25 --html '<p>comment</p>' [--access <value>]
   plane issue comments update --project <project-id> <issue-id> <comment-id> --html '<p>comment</p>' [--access <value>]
   plane issue comments update GAEA-25 <comment-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments delete --project <project-id> <issue-id> <comment-id> --confirm
+  plane issue comments delete GAEA-25 <comment-id> --confirm
   plane issue activities ls --project <project-id> <issue-id>
   plane issue activities ls GAEA-25
   plane issue links ls --project <project-id> <issue-id>
@@ -294,6 +298,8 @@ function printHelp() {
   plane issue links add GAEA-25 --url <url> [--title <text>]
   plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
   plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+  plane issue links delete --project <project-id> <issue-id> <link-id> --confirm
+  plane issue links delete GAEA-25 <link-id> --confirm
   plane issue epic set --project <project-id> <issue-id> --epic <epic-id>
   plane issue epic clear --project <project-id> <issue-id>
   plane issue epic set GAEA-25 --epic <epic-id>
@@ -310,8 +316,11 @@ function printHelp() {
   plane issue attachments ls GAEA-25
   plane issue attachments upload --project <project-id> <issue-id> --file <path> [--name <filename>] [--type <mime>]
   plane issue attachments upload GAEA-25 --file <path> [--name <filename>] [--type <mime>]
+  plane issue attachments delete --project <project-id> <issue-id> <attachment-id> --confirm
+  plane issue attachments delete GAEA-25 <attachment-id> --confirm
   plane issue create --project <project-id> --name <name> [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
   plane issue update --project <project-id> <issue-id> [--name <name>] [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
+  plane issue delete --project <project-id> <issue-id> --confirm
 `);
 }
 
@@ -323,6 +332,8 @@ function printIssueCommentsHelp() {
   plane issue comments add GAEA-25 --html '<p>comment</p>' [--access <value>]
   plane issue comments update --project <project-id> <issue-id> <comment-id> --html '<p>comment</p>' [--access <value>]
   plane issue comments update GAEA-25 <comment-id> --html '<p>comment</p>' [--access <value>]
+  plane issue comments delete --project <project-id> <issue-id> <comment-id> --confirm
+  plane issue comments delete GAEA-25 <comment-id> --confirm
 `);
 }
 
@@ -334,6 +345,8 @@ function printIssueLinksHelp() {
   plane issue links add GAEA-25 --url <url> [--title <text>]
   plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
   plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+  plane issue links delete --project <project-id> <issue-id> <link-id> --confirm
+  plane issue links delete GAEA-25 <link-id> --confirm
 `);
 }
 
@@ -352,6 +365,8 @@ function printIssueAttachmentsHelp() {
   plane issue attachments ls GAEA-25
   plane issue attachments upload --project <project-id> <issue-id> --file <path> [--name <filename>] [--type <mime>]
   plane issue attachments upload GAEA-25 --file <path> [--name <filename>] [--type <mime>]
+  plane issue attachments delete --project <project-id> <issue-id> <attachment-id> --confirm
+  plane issue attachments delete GAEA-25 <attachment-id> --confirm
 `);
 }
 
@@ -366,6 +381,8 @@ function printIssueLabelsHelp() {
   console.log(`Usage:
   plane issue labels ls --project <project-id>
   plane issue labels create --project <project-id> --name <name> [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+  plane issue labels update --project <project-id> <label-id> [--name <name>] [--color <hex>] [--description <text>] [--parent <label-id>] [--sort-order <n>]
+  plane issue labels delete --project <project-id> <label-id> --confirm
 `);
 }
 
@@ -500,6 +517,49 @@ async function runIssueLabelsCommand(issueClient, args, context) {
     return;
   }
 
+  if (subcommand === "update") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        name: { type: "string" },
+        color: { type: "string" },
+        description: { type: "string" },
+        parent: { type: "string" },
+        "sort-order": { type: "string" },
+      }
+    );
+
+    ensureValue(parsed.values.project, "Project ID is required.");
+    ensureValue(parsed.positionals[0], "Label ID is required.");
+    const payload = buildIssueLabelPayload(parsed.values);
+    if (Object.keys(payload).length === 0) {
+      throw new CliError("At least one update field is required.");
+    }
+    const result = await issueClient.updateLabel(parsed.values.project, parsed.positionals[0], payload);
+    printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.values.project, "Project ID is required.");
+    ensureValue(parsed.positionals[0], "Label ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+    await issueClient.deleteLabel(parsed.values.project, parsed.positionals[0]);
+    printData({ deleted: true, id: parsed.positionals[0] }, context.output);
+    return;
+  }
+
   throw new CliError(`Unknown issue labels subcommand: ${subcommand}`);
 }
 
@@ -596,6 +656,26 @@ async function runIssueCommentsCommand(issueClient, args, context) {
       buildIssueCommentPayload(parsed.values)
     );
     printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.positionals[0], "Issue ID is required.");
+    ensureValue(parsed.positionals[1], "Comment ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+    const issueRef = await resolveIssueTarget(issueClient, parsed.values.project, parsed.positionals[0]);
+    await issueClient.deleteComment(issueRef.projectId, issueRef.issueId, parsed.positionals[1]);
+    printData({ deleted: true, id: parsed.positionals[1] }, context.output);
     return;
   }
 
@@ -728,6 +808,26 @@ async function runIssueLinksCommand(issueClient, args, context) {
       buildIssueLinkPayload(parsed.values, issueRef.issueId)
     );
     printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.positionals[0], "Issue ID is required.");
+    ensureValue(parsed.positionals[1], "Link ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+    const issueRef = await resolveIssueTarget(issueClient, parsed.values.project, parsed.positionals[0]);
+    await issueClient.deleteLink(issueRef.projectId, issueRef.issueId, parsed.positionals[1]);
+    printData({ deleted: true, id: parsed.positionals[1] }, context.output);
     return;
   }
 
@@ -956,6 +1056,26 @@ async function runIssueAttachmentsCommand(issueClient, args, context) {
       },
       context.output
     );
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.positionals[0], "Issue ID is required.");
+    ensureValue(parsed.positionals[1], "Attachment ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+    const issueRef = await resolveIssueTarget(issueClient, parsed.values.project, parsed.positionals[0]);
+    await issueClient.deleteAttachment(issueRef.projectId, issueRef.issueId, parsed.positionals[1]);
+    printData({ deleted: true, id: parsed.positionals[1] }, context.output);
     return;
   }
 
@@ -1228,6 +1348,26 @@ export async function runIssueCommand(args, context) {
 
     const result = await issueClient.update(parsed.values.project, parsed.positionals[0], payload);
     printData(result, context.output);
+    return;
+  }
+
+  if (subcommand === "delete") {
+    const parsed = parseCommandArgs(
+      rest,
+      {
+        project: { type: "string" },
+        confirm: { type: "boolean" },
+      }
+    );
+
+    ensureValue(parsed.values.project, "Project ID is required.");
+    ensureValue(parsed.positionals[0], "Issue ID is required.");
+    if (!parsed.values.confirm) {
+      throw new CliError("Deletion requires --confirm.");
+    }
+
+    await issueClient.delete(parsed.values.project, parsed.positionals[0]);
+    printData({ deleted: true, id: parsed.positionals[0] }, context.output);
     return;
   }
 
