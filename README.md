@@ -7,6 +7,7 @@
 - 支持 API Key 配置与账号密码登录
 - 支持多 workspace 选择与切换
 - 支持人类可读输出与结构化 JSON 输出
+- 支持我的工作项与项目工作项统计查询
 - 支持 `project` 查询、创建、更新、成员管理、features 开关
 - 支持 `issue` 查询、创建、更新、labels、comments、activities、links、relations、attachments
 - 支持 `GAEA-25` 这类 issue key 自动解析
@@ -103,6 +104,8 @@ plane workspace use <slug>
 ```bash
 plane --help
 plane me
+plane me work-items --state-group started
+plane me project-stats
 plane config list
 plane workspace current
 ```
@@ -125,6 +128,15 @@ plane project members add --project <project-id> --member <user-id> --role membe
 plane project features get <project-id>
 plane project features set <project-id> --epics on --milestones on --auto-transition on
 plane project features enable-all <project-id>
+
+plane project states ls --project <project-id>
+plane project cycles ls --project <project-id> --view current
+plane project cycles issues --project <project-id> --cycle <cycle-id>
+plane project modules ls --project <project-id>
+plane project modules issues --project <project-id> --module <module-id>
+plane project epics ls --project <project-id>
+plane project epics issues --project <project-id> --epic <epic-id>
+plane project milestones ls --project <project-id> --search release
 ```
 
 ### Issue / Work Item 命令
@@ -171,6 +183,15 @@ plane issue links add GAEA-25 --url 'https://example.com/doc'
 plane issue links update GAEA-25 <link-id> --url 'https://example.com/doc-v2'
 ```
 
+### Issue Epic / Milestone
+
+```bash
+plane issue epic set GAEA-25 --epic <epic-id>
+plane issue epic clear GAEA-25
+plane issue milestone set GAEA-25 --milestone <milestone-id>
+plane issue milestone clear GAEA-25
+```
+
 ### Issue Relations
 
 ```bash
@@ -195,6 +216,8 @@ plane issue attachments upload GAEA-25 --file ./spec.pdf
 - `issue comments ls/add/update`
 - `issue activities ls`
 - `issue links ls/add/update`
+- `issue epic set/clear`
+- `issue milestone set/clear`
 - `issue relations ls/add`
 - `issue attachments ls/upload`
 

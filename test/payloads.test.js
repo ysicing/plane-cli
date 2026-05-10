@@ -8,16 +8,20 @@ import {
   parseToggle,
   splitProjectCreatePayload,
 } from "../src/commands/project.js";
+import { buildProjectListQuery } from "../src/commands/project-lists.js";
 import {
   buildIssueCommentPayload,
+  buildIssueEpicPayload,
   buildIssueLinkPayload,
   buildIssueLabelPayload,
+  buildIssueMilestonePayload,
   buildIssuePayload,
   buildIssueRelationPayload,
   inferAttachmentMimeType,
   parseIssueKey,
   resolveAssigneeRefs,
 } from "../src/commands/issue.js";
+import { buildMyWorkItemQuery } from "../src/commands/me.js";
 
 test("buildProjectPayload keeps supported fields only", () => {
   const payload = buildProjectPayload({
@@ -138,6 +142,84 @@ test("buildIssueRelationPayload maps relation fields", () => {
     {
       relation_type: "blocking",
       issues: ["id-1", "id-2"],
+    }
+  );
+});
+
+test("buildIssueEpicPayload maps set and clear payloads", () => {
+  assert.deepEqual(buildIssueEpicPayload({ "epic-id": "epic-1" }), {
+    epic_id: "epic-1",
+  });
+  assert.deepEqual(buildIssueEpicPayload({}), {
+    epic_id: null,
+  });
+});
+
+test("buildIssueMilestonePayload maps set and clear payloads", () => {
+  assert.deepEqual(buildIssueMilestonePayload({ "milestone-id": "milestone-1" }), {
+    milestone_id: "milestone-1",
+  });
+  assert.deepEqual(buildIssueMilestonePayload({}), {
+    milestone_id: null,
+  });
+});
+
+test("buildMyWorkItemQuery maps CLI filters to API query names", () => {
+  assert.deepEqual(
+    buildMyWorkItemQuery({
+      project: "project-1",
+      "state-group": "started",
+      "type-id": "type-1",
+      "issue-type-id": "issue-type-1",
+      "module-id": "module-1",
+      "cycle-id": "cycle-1",
+      "created-from": "2026-05-01",
+      "updated-to": "2026-05-10",
+      "target-from": "2026-05-09",
+      limit: "50",
+      cursor: "20:1:0",
+      "order-by": "-updated_at",
+      fields: "id,name",
+      expand: "state,labels",
+    }),
+    {
+      per_page: "50",
+      cursor: "20:1:0",
+      order_by: "-updated_at",
+      fields: "id,name",
+      expand: "state,labels",
+      project_id: "project-1",
+      state_group: "started",
+      type_id: "type-1",
+      issue_type_id: "issue-type-1",
+      module_id: "module-1",
+      cycle_id: "cycle-1",
+      created_from: "2026-05-01",
+      updated_to: "2026-05-10",
+      target_from: "2026-05-09",
+    }
+  );
+});
+
+test("buildProjectListQuery maps pagination and resource filters", () => {
+  assert.deepEqual(
+    buildProjectListQuery({
+      limit: "50",
+      cursor: "20:1:0",
+      "order-by": "-created_at",
+      fields: "id,name",
+      expand: "state,labels",
+      view: "current",
+      search: "release",
+    }),
+    {
+      per_page: "50",
+      cursor: "20:1:0",
+      order_by: "-created_at",
+      fields: "id,name",
+      expand: "state,labels",
+      cycle_view: "current",
+      search: "release",
     }
   );
 });

@@ -27,6 +27,22 @@ export class IssueClient {
     return this.client.get(this.client.workspacePath("/work-items/search/"), query);
   }
 
+  listMyWorkItems(query = {}) {
+    return this.client.get(this.client.workspacePath("/me/work-items/"), query);
+  }
+
+  listMyProjectWorkItemStats(query = {}) {
+    return this.client.get(this.client.workspacePath("/me/projects/work-items/"), query);
+  }
+
+  updateEpic(projectId, issueId, body) {
+    return this.client.patch(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/epic/`), body);
+  }
+
+  updateMilestone(projectId, issueId, body) {
+    return this.client.patch(this.client.workspacePath(`/projects/${projectId}/work-items/${issueId}/milestone/`), body);
+  }
+
   listLabels(projectId, query = {}) {
     return this.client.get(this.client.workspacePath(`/projects/${projectId}/labels/`), query);
   }

@@ -1,4 +1,5 @@
 import { ProjectClient } from "../api/project-client.js";
+import { printProjectListHelp, runProjectListCommand } from "./project-lists.js";
 import { resolveRuntimeConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
 import { PlaneClient } from "../core/http.js";
@@ -124,6 +125,14 @@ function printHelp() {
   plane project features get <project-id>
   plane project features set <project-id> [--issue-types on|off] [--epics on|off] [--milestones on|off] [--time-tracking on|off] [--auto-transition on|off] [--auto-assign on|off] [--auto-worklog on|off] [--require-worklog-before-completion on|off]
   plane project features enable-all <project-id>
+  plane project states ls --project <project-id>
+  plane project cycles ls --project <project-id> [--view <all|current|upcoming|completed|draft|incomplete>]
+  plane project cycles issues --project <project-id> --cycle <cycle-id>
+  plane project modules ls --project <project-id>
+  plane project modules issues --project <project-id> --module <module-id>
+  plane project epics ls --project <project-id>
+  plane project epics issues --project <project-id> --epic <epic-id>
+  plane project milestones ls --project <project-id> [--search <text>]
   plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
   plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>]
 `);
@@ -346,6 +355,10 @@ export async function runProjectCommand(args, context) {
       printProjectFeaturesHelp();
       return;
     }
+    if (["states", "cycles", "modules", "epics", "milestones"].includes(subcommand)) {
+      printProjectListHelp();
+      return;
+    }
     if (subcommand === "create") {
       printProjectCreateHelp();
       return;
@@ -368,6 +381,11 @@ export async function runProjectCommand(args, context) {
 
   if (subcommand === "features") {
     await runProjectFeaturesCommand(projectClient, rest, context);
+    return;
+  }
+
+  if (["states", "cycles", "modules", "epics", "milestones"].includes(subcommand)) {
+    await runProjectListCommand(projectClient, subcommand, rest, context);
     return;
   }
 

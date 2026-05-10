@@ -228,6 +228,18 @@ export function buildIssueRelationPayload(values) {
   });
 }
 
+export function buildIssueEpicPayload(values) {
+  return {
+    epic_id: values["epic-id"] || null,
+  };
+}
+
+export function buildIssueMilestonePayload(values) {
+  return {
+    milestone_id: values["milestone-id"] || null,
+  };
+}
+
 export function inferAttachmentMimeType(filePath) {
   return MIME_BY_EXTENSION[extname(filePath).toLowerCase()] || null;
 }
@@ -282,6 +294,14 @@ function printHelp() {
   plane issue links add GAEA-25 --url <url> [--title <text>]
   plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
   plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+  plane issue epic set --project <project-id> <issue-id> --epic <epic-id>
+  plane issue epic clear --project <project-id> <issue-id>
+  plane issue epic set GAEA-25 --epic <epic-id>
+  plane issue epic clear GAEA-25
+  plane issue milestone set --project <project-id> <issue-id> --milestone <milestone-id>
+  plane issue milestone clear --project <project-id> <issue-id>
+  plane issue milestone set GAEA-25 --milestone <milestone-id>
+  plane issue milestone clear GAEA-25
   plane issue relations ls --project <project-id> <issue-id>
   plane issue relations ls GAEA-25
   plane issue relations add --project <project-id> <issue-id> --relation-type <blocking|blocked_by|duplicate|relates_to|start_before|start_after|finish_before|finish_after> --issues <id1,id2>
@@ -380,6 +400,24 @@ function printIssueLinksUpdateHelp() {
   console.log(`Usage:
   plane issue links update --project <project-id> <issue-id> <link-id> --url <url> [--title <text>]
   plane issue links update GAEA-25 <link-id> --url <url> [--title <text>]
+`);
+}
+
+function printIssueEpicHelp() {
+  console.log(`Usage:
+  plane issue epic set --project <project-id> <issue-id> --epic <epic-id>
+  plane issue epic clear --project <project-id> <issue-id>
+  plane issue epic set GAEA-25 --epic <epic-id>
+  plane issue epic clear GAEA-25
+`);
+}
+
+function printIssueMilestoneHelp() {
+  console.log(`Usage:
+  plane issue milestone set --project <project-id> <issue-id> --milestone <milestone-id>
+  plane issue milestone clear --project <project-id> <issue-id>
+  plane issue milestone set GAEA-25 --milestone <milestone-id>
+  plane issue milestone clear GAEA-25
 `);
 }
 
@@ -696,6 +734,70 @@ async function runIssueLinksCommand(issueClient, args, context) {
   throw new CliError(`Unknown issue links subcommand: ${subcommand}`);
 }
 
+async function runIssueEpicCommand(issueClient, args, context) {
+  const [subcommand, ...rest] = args;
+
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help" || hasHelpFlag(rest)) {
+    printIssueEpicHelp();
+    return;
+  }
+
+  if (!["set", "clear"].includes(subcommand)) {
+    throw new CliError(`Unknown issue epic subcommand: ${subcommand}`);
+  }
+
+  const parsed = parseCommandArgs(
+    rest,
+    {
+      project: { type: "string" },
+      epic: { type: "string" },
+    }
+  );
+
+  ensureValue(parsed.positionals[0], "Issue ID is required.");
+  if (subcommand === "set") {
+    ensureValue(parsed.values.epic, "Epic ID is required.");
+  }
+
+  const issueRef = await resolveIssueTarget(issueClient, parsed.values.project, parsed.positionals[0]);
+  const payload = buildIssueEpicPayload({ "epic-id": subcommand === "set" ? parsed.values.epic : null });
+  const result = await issueClient.updateEpic(issueRef.projectId, issueRef.issueId, payload);
+  printData(result, context.output);
+}
+
+async function runIssueMilestoneCommand(issueClient, args, context) {
+  const [subcommand, ...rest] = args;
+
+  if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help" || hasHelpFlag(rest)) {
+    printIssueMilestoneHelp();
+    return;
+  }
+
+  if (!["set", "clear"].includes(subcommand)) {
+    throw new CliError(`Unknown issue milestone subcommand: ${subcommand}`);
+  }
+
+  const parsed = parseCommandArgs(
+    rest,
+    {
+      project: { type: "string" },
+      milestone: { type: "string" },
+    }
+  );
+
+  ensureValue(parsed.positionals[0], "Issue ID is required.");
+  if (subcommand === "set") {
+    ensureValue(parsed.values.milestone, "Milestone ID is required.");
+  }
+
+  const issueRef = await resolveIssueTarget(issueClient, parsed.values.project, parsed.positionals[0]);
+  const payload = buildIssueMilestonePayload({
+    "milestone-id": subcommand === "set" ? parsed.values.milestone : null,
+  });
+  const result = await issueClient.updateMilestone(issueRef.projectId, issueRef.issueId, payload);
+  printData(result, context.output);
+}
+
 async function runIssueRelationsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
@@ -885,6 +987,14 @@ export async function runIssueCommand(args, context) {
       printIssueLinksHelp();
       return;
     }
+    if (subcommand === "epic") {
+      printIssueEpicHelp();
+      return;
+    }
+    if (subcommand === "milestone") {
+      printIssueMilestoneHelp();
+      return;
+    }
     if (subcommand === "relations") {
       printIssueRelationsHelp();
       return;
@@ -919,6 +1029,16 @@ export async function runIssueCommand(args, context) {
 
   if (subcommand === "links") {
     await runIssueLinksCommand(issueClient, rest, context);
+    return;
+  }
+
+  if (subcommand === "epic") {
+    await runIssueEpicCommand(issueClient, rest, context);
+    return;
+  }
+
+  if (subcommand === "milestone") {
+    await runIssueMilestoneCommand(issueClient, rest, context);
     return;
   }
 

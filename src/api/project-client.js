@@ -34,4 +34,44 @@ export class ProjectClient {
   listWorkspaceMembers() {
     return this.client.get(this.client.workspacePath("/members/"));
   }
+
+  listStates(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/states/`), query);
+  }
+
+  listCycles(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/cycles/`), query);
+  }
+
+  listArchivedCycles(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/archived-cycles/`), query);
+  }
+
+  listCycleWorkItems(projectId, cycleId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/cycles/${cycleId}/cycle-issues/`), query);
+  }
+
+  listModules(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/modules/`), query);
+  }
+
+  listArchivedModules(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/archived-modules/`), query);
+  }
+
+  listModuleWorkItems(projectId, moduleId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/modules/${moduleId}/module-issues/`), query);
+  }
+
+  listEpics(projectId) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/epics/`));
+  }
+
+  listEpicWorkItems(projectId, epicId) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/epics/${epicId}/issues/`));
+  }
+
+  listMilestones(projectId, query = {}) {
+    return this.client.get(this.client.workspacePath(`/projects/${projectId}/milestones/`), query);
+  }
 }
