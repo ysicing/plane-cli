@@ -19,10 +19,6 @@ export class ProjectClient {
     return this.client.patch(this.client.workspacePath(`/projects/${projectId}/`), body);
   }
 
-  delete(projectId) {
-    return this.client.delete(this.client.workspacePath(`/projects/${projectId}/`));
-  }
-
   summary(projectId, query = {}) {
     return this.client.get(this.client.workspacePath(`/projects/${projectId}/summary/`), query);
   }

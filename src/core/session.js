@@ -1,4 +1,5 @@
 import { CliError } from "./errors.js";
+import { buildUserAgent } from "./http.js";
 
 function normalizeBaseUrl(baseUrl) {
   return baseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "").replace(/\/api$/, "");
@@ -81,6 +82,7 @@ export class PlaneSessionClient {
 
   async fetch(path, options = {}) {
     const headers = new Headers(options.headers || {});
+    headers.set("User-Agent", headers.get("User-Agent") || buildUserAgent());
     const cookieHeader = this.cookies.toHeader();
     if (cookieHeader) {
       headers.set("Cookie", cookieHeader);

@@ -23,7 +23,7 @@ import {
   resolveAssigneeRefs,
 } from "../src/commands/issue.js";
 import { buildStickyPayload, buildWorkspaceInvitationPayload, normalizeWorkspaceRole } from "../src/commands/workspace-resources.js";
-import { aggregateWorkspaceSummaries, buildMeSummary, buildMyWorkItemQuery } from "../src/commands/me.js";
+import { aggregateWorkspaceSummaries, buildMeSummary, buildMyWorkItemQuery, isTodoWorkItem } from "../src/commands/me.js";
 
 test("buildProjectPayload keeps supported fields only", () => {
   const payload = buildProjectPayload({
@@ -300,6 +300,12 @@ test("buildMyWorkItemQuery maps CLI filters to API query names", () => {
       target_from: "2026-05-09",
     }
   );
+});
+
+test("isTodoWorkItem treats incomplete assigned work as todo", () => {
+  assert.equal(isTodoWorkItem({ completed_at: null, state_group: "started" }), true);
+  assert.equal(isTodoWorkItem({ completed_at: "2026-05-11T10:00:00+08:00", state_group: "completed" }), false);
+  assert.equal(isTodoWorkItem({ completed_at: null, state: { group: "cancelled" } }), false);
 });
 
 test("buildProjectListQuery maps pagination and resource filters", () => {

@@ -20,6 +20,9 @@ test("installBundledSkills copies packaged skills into Codex skill directory", a
   const content = await readFile(skillPath, "utf8");
   assert.ok(content.includes("name: plane"));
   assert.ok(content.includes("plane issue get GAEA-30"));
+  assert.ok(content.includes("plane issue todo --json"));
+  assert.ok(content.includes("plane config set --workspace <slug>"));
+  assert.ok(content.includes("不提供 project/workspace 删除命令"));
 
   await rm(root, { recursive: true, force: true });
 });

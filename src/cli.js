@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+import { Command } from "commander";
+
 import { runAuthCommand } from "./commands/auth.js";
 import { runConfigCommand } from "./commands/config.js";
 import { runIssueCommand } from "./commands/issue.js";
@@ -42,61 +44,133 @@ function extractGlobalOptions(argv) {
 }
 
 function printHelp() {
-  console.log(`plane-cli
+  createProgram({ output: { format: "human" } }).outputHelp();
+}
 
-Usage:
-  plane <command> [options]
+function createProgram(context) {
+  const program = new Command();
 
-Commands:
-  auth        Sign in and bootstrap API credentials
-  config      Manage local CLI config
-  me          Show current authenticated user
-  project     Manage projects
-  issue       Manage work items through issue commands
-  work-item   Alias of issue
-  workspace   Manage selected workspace
+  program
+    .name("plane")
+    .description("Manage Plane workspaces, projects, and work items")
+    .option("--format <format>", "Output format: human|json")
+    .option("--json", "Alias of --format json")
+    .helpOption(false)
+    .allowUnknownOption(true)
+    .allowExcessArguments(true);
 
-Global options:
-  --format    Output format: human|json
-  --json      Alias of --format json
-  --help      Show help
-`);
+  program
+    .command("auth")
+    .description("Sign in and bootstrap API credentials")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runAuthCommand(args, context));
+
+  program
+    .command("config")
+    .description("Manage local CLI config")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runConfigCommand(args, context));
+
+  program
+    .command("me")
+    .description("Show current authenticated user and assigned work")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runMeCommand(args, context));
+
+  program
+    .command("project")
+    .description("Manage projects")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runProjectCommand(args, context));
+
+  program
+    .command("workspace")
+    .description("Manage selected workspace")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runWorkspaceCommand(args, context));
+
+  program
+    .command("issue")
+    .description("Manage work items")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runIssueCommand(args, context));
+
+  program
+    .command("work-item")
+    .description("Alias of issue")
+    .argument("[args...]")
+    .allowUnknownOption(true)
+    .allowExcessArguments(true)
+    .action((args) => runIssueCommand(args, context));
+
+  return program;
 }
 
 async function main() {
   const { args, options } = extractGlobalOptions(process.argv.slice(2));
   const [command, ...rest] = args;
 
-  if (!command || command === "help" || command === "--help" || command === "-h") {
+  if (!command || command === "--help" || command === "-h") {
     printHelp();
     return;
   }
 
   const context = { output: options };
 
-  switch (command) {
-    case "auth":
-      await runAuthCommand(rest, context);
+  if (command === "help") {
+    const [helpCommand, ...helpRest] = rest;
+    if (!helpCommand) {
+      printHelp();
       return;
-    case "config":
-      await runConfigCommand(rest, context);
-      return;
-    case "me":
-      await runMeCommand(rest, context);
-      return;
-    case "project":
-      await runProjectCommand(rest, context);
-      return;
-    case "workspace":
-      await runWorkspaceCommand(rest, context);
-      return;
-    case "issue":
-    case "work-item":
-      await runIssueCommand(rest, context);
-      return;
-    default:
-      throw new CliError(`Unknown command: ${command}`);
+    }
+    const helpArgs = [...helpRest, "--help"];
+    switch (helpCommand) {
+      case "auth":
+        await runAuthCommand(helpArgs, context);
+        return;
+      case "config":
+        await runConfigCommand(helpArgs, context);
+        return;
+      case "me":
+        await runMeCommand(helpArgs, context);
+        return;
+      case "project":
+        await runProjectCommand(helpArgs, context);
+        return;
+      case "workspace":
+        await runWorkspaceCommand(helpArgs, context);
+        return;
+      case "issue":
+      case "work-item":
+        await runIssueCommand(helpArgs, context);
+        return;
+      default:
+        throw new CliError(`Unknown command: ${helpCommand}`);
+    }
   }
+
+  const program = createProgram(context);
+  program.exitOverride((error) => {
+    throw new CliError(error.message);
+  });
+
+  if (!program.commands.some((item) => item.name() === command)) {
+    throw new CliError(`Unknown command: ${command}`);
+  }
+
+  await program.parseAsync([command, ...rest], { from: "user" });
 }
 
 function wantsJsonOutput(argv) {

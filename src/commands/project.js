@@ -144,22 +144,46 @@ function printHelp() {
   plane project members ls --project <project-id>
   plane project members workspace
   plane project members add --project <project-id> --member <user-id> --role <admin|member|guest>
+  plane project members update --project <project-id> <member-id> --role <admin|member|guest>
+  plane project members delete --project <project-id> <member-id> --confirm
   plane project features get <project-id>
   plane project features set <project-id> [--issue-types on|off] [--epics on|off] [--milestones on|off] [--time-tracking on|off] [--auto-transition on|off] [--auto-assign on|off] [--auto-worklog on|off] [--require-worklog-before-completion on|off]
   plane project features enable-all <project-id>
   plane project states ls --project <project-id>
+  plane project states get --project <project-id> <state-id>
+  plane project states create --project <project-id> --name <name> --color <hex> --group <backlog|unstarted|started|completed|cancelled|triage>
+  plane project states update --project <project-id> <state-id> [--name <name>] [--color <hex>] [--group <group>]
+  plane project states delete --project <project-id> <state-id> --confirm
   plane project cycles ls --project <project-id> [--view <all|current|upcoming|completed|draft|incomplete>]
+  plane project cycles get --project <project-id> <cycle-id>
+  plane project cycles create --project <project-id> --name <name>
+  plane project cycles update --project <project-id> <cycle-id> [--name <name>] [--description <text>]
+  plane project cycles delete --project <project-id> <cycle-id> --confirm
   plane project cycles issues --project <project-id> --cycle <cycle-id>
   plane project modules ls --project <project-id>
+  plane project modules get --project <project-id> <module-id>
+  plane project modules create --project <project-id> --name <name>
+  plane project modules update --project <project-id> <module-id> [--name <name>] [--description <text>]
+  plane project modules delete --project <project-id> <module-id> --confirm
   plane project modules issues --project <project-id> --module <module-id>
   plane project epics ls --project <project-id>
+  plane project epics get --project <project-id> <epic-id>
+  plane project epics create --project <project-id> --name <name>
+  plane project epics update --project <project-id> <epic-id> [--name <name>] [--html <html>]
+  plane project epics delete --project <project-id> <epic-id> --confirm
   plane project epics issues --project <project-id> --epic <epic-id>
   plane project milestones ls --project <project-id> [--search <text>]
+  plane project milestones get --project <project-id> <milestone-id>
+  plane project milestones create --project <project-id> --title <title>
+  plane project milestones update --project <project-id> <milestone-id> [--title <title>] [--html <html>]
+  plane project milestones delete --project <project-id> <milestone-id> --confirm
   plane project intake ls --project <project-id>
+  plane project intake get --project <project-id> <issue-id>
   plane project intake create --project <project-id> --name <name>
+  plane project intake update --project <project-id> <issue-id> [--status <n>] [--name <name>]
+  plane project intake delete --project <project-id> <issue-id> --confirm
   plane project create --name <name> --identifier <identifier> [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
   plane project update <project-id> [--name <name>] [--identifier <identifier>] [--description <text>] [--project-lead <user-id>] [--default-assignee <user-id>] [--cycle-view on|off] [--module-view on|off] [--issue-views-view on|off] [--page-view on|off] [--intake-view on|off]
-  plane project delete <project-id> --confirm
 `);
 }
 
@@ -215,7 +239,7 @@ async function runProjectMembersCommand(projectClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printProjectMembersHelp();
     return;
   }
 
@@ -329,7 +353,7 @@ async function runProjectFeaturesCommand(projectClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printProjectFeaturesHelp();
     return;
   }
 
@@ -417,6 +441,8 @@ async function runProjectFeaturesCommand(projectClient, args, context) {
 
 export async function runProjectCommand(args, context) {
   const [subcommand, ...rest] = args;
+  const nestedCommands = ["members", "features", "states", "cycles", "modules", "epics", "milestones", "intake"];
+  const directCommands = ["ls", "get", "summary", "create", "update"];
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
     printHelp();
@@ -425,11 +451,11 @@ export async function runProjectCommand(args, context) {
 
   if (hasHelpFlag(rest)) {
     if (subcommand === "members") {
-      printProjectMembersHelp();
+      await runProjectMembersCommand(null, rest, context);
       return;
     }
     if (subcommand === "features") {
-      printProjectFeaturesHelp();
+      await runProjectFeaturesCommand(null, rest, context);
       return;
     }
     if (["states", "cycles", "modules", "epics", "milestones"].includes(subcommand)) {
@@ -450,6 +476,10 @@ export async function runProjectCommand(args, context) {
     }
     printHelp();
     return;
+  }
+
+  if (![...nestedCommands, ...directCommands].includes(subcommand)) {
+    throw new CliError(`Unknown project subcommand: ${subcommand}`);
   }
 
   const config = await resolveRuntimeConfig();
@@ -593,24 +623,6 @@ export async function runProjectCommand(args, context) {
 
     const result = await projectClient.update(projectId, payload);
     printData(result, context.output);
-    return;
-  }
-
-  if (subcommand === "delete") {
-    const parsed = parseCommandArgs(
-      rest,
-      {
-        confirm: { type: "boolean" },
-      }
-    );
-
-    ensureValue(parsed.positionals[0], "Project ID is required.");
-    if (!parsed.values.confirm) {
-      throw new CliError("Deletion requires --confirm.");
-    }
-
-    await projectClient.delete(parsed.positionals[0]);
-    printData({ deleted: true, id: parsed.positionals[0] }, context.output);
     return;
   }
 

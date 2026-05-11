@@ -12,6 +12,7 @@ description: 管理 Plane 工作项与项目能力。当用户提到工作项标
 - 优先使用 `plane` 命令，不要手写 curl 直接调 Plane API
 - 自动化消费结果时，优先加 `--json`
 - 用户消息中只要出现工作项标识（如 `GAEA-30`、`TEST-12`），优先先查询该工作项
+- API key 模式不能依赖自动发现 workspace；若命令提示 workspace 缺失，先让用户配置或切换 workspace
 - 如果提交代码，commit message 必须包含带 `#` 前缀的工作项标识与工时，格式：
 
 ```text
@@ -68,6 +69,12 @@ plane issue attachments upload GAEA-30 --file ./spec.pdf --json
 plane workspace current
 plane workspace ls
 plane workspace use <slug>
+```
+
+如果 API key 无法列出 workspace，直接显式配置已知 workspace：
+
+```bash
+plane config set --workspace <slug>
 ```
 
 ### 3. 代码提交场景
@@ -158,6 +165,8 @@ plane project features set <project-id> --epics on --milestones on --auto-transi
 
 ```bash
 plane issue ls --project <project-id> --json
+plane issue mine --json
+plane issue todo --json
 plane issue get GAEA-30 --json
 plane issue key GAEA-30 --json
 plane issue search --query login --workspace-search --json
@@ -227,6 +236,7 @@ plane project members workspace --json
 
 ## 限制
 
-- 默认不提供危险删除命令
+- 不提供 project/workspace 删除命令
+- 子资源删除命令必须显式传 `--confirm`
 - `project members ls` 受 Plane 外部 API 返回结构限制，仅稳定返回用户资料
 - 某些写操作在启用读副本的实例上，可能存在短暂回读延迟

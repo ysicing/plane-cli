@@ -1,7 +1,26 @@
+import { createRequire } from "node:module";
+
 import { CliError } from "./errors.js";
+
+const require = createRequire(import.meta.url);
+const packageInfo = require("../../package.json");
 
 function normalizeBaseUrl(baseUrl) {
   return baseUrl.replace(/\/+$/, "").replace(/\/api\/v1$/, "").replace(/\/api$/, "");
+}
+
+function normalizePlatform(platform) {
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "windows";
+  return platform || "unknown";
+}
+
+export function buildUserAgent({
+  version = packageInfo.version,
+  platform = process.platform,
+  arch = process.arch,
+} = {}) {
+  return `plane/${version},os=${normalizePlatform(platform)},arch=${arch || "unknown"}`;
 }
 
 export function buildApiUrl(baseUrl, path, query = {}) {
@@ -66,6 +85,7 @@ export class PlaneClient {
     const url = buildApiUrl(this.baseUrl, path, options.query);
     const headers = {
       Accept: "application/json",
+      "User-Agent": buildUserAgent(),
       "X-Api-Key": this.apiKey,
     };
 

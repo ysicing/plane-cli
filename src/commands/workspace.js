@@ -10,9 +10,15 @@ function printHelp() {
   plane workspace current
   plane workspace use <slug> [--force]
   plane workspace invitations ls
+  plane workspace invitations get <invite-id>
   plane workspace invitations create --email <email> [--role <admin|member|guest>]
+  plane workspace invitations update <invite-id> [--email <email>] [--role <admin|member|guest>]
+  plane workspace invitations delete <invite-id> --confirm
   plane workspace stickies ls
+  plane workspace stickies get <sticky-id>
   plane workspace stickies create --name <name>
+  plane workspace stickies update <sticky-id> [--name <name>] [--html <html>] [--color <value>]
+  plane workspace stickies delete <sticky-id> --confirm
 `);
 }
 

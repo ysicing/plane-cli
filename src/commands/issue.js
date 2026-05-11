@@ -1,10 +1,12 @@
 import { IssueClient } from "../api/issue-client.js";
 import { ProjectClient } from "../api/project-client.js";
+import { UserClient } from "../api/user-client.js";
 import { resolveRuntimeConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
 import { PlaneClient } from "../core/http.js";
 import { ensureValue, parseCommandArgs, pickDefined, splitCsv } from "../core/options.js";
 import { printData, printTable } from "../core/output.js";
+import { listMyWorkItemsWithFallback, parseMyWorkItemArgs } from "./me.js";
 import { basename, extname } from "node:path";
 import { readFile, stat } from "node:fs/promises";
 
@@ -274,6 +276,8 @@ export function resolveAssigneeRefs(refs, members) {
 function printHelp() {
   console.log(`Usage:
   plane issue ls --project <project-id> [--limit <n>] [--cursor <cursor>] [--order-by <field>] [--state <state-id>] [--priority <value>] [--assignees <id1,id2>] [--expand <field1,field2>]
+  plane issue mine [--project <project-id>] [--state-group <group>] [--limit <n>] [--cursor <cursor>] [--order-by <field>] [--fields <fields>] [--expand <fields>]
+  plane issue todo [--project <project-id>] [--state-group <group>] [--limit <n>] [--cursor <cursor>] [--order-by <field>] [--fields <fields>] [--expand <fields>]
   plane issue get --project <project-id> <issue-id>
   plane issue get GAEA-25
   plane issue key <PROJECT-123> [--expand <field1,field2>] [--fields <field1,field2>]
@@ -452,11 +456,26 @@ function printIssueAttachmentsUploadHelp() {
 `);
 }
 
+function printIssueMineHelp() {
+  console.log(`Usage:
+  plane issue mine [--project <project-id>] [--state-group <group>] [--limit <n>] [--cursor <cursor>] [--order-by <field>] [--fields <fields>] [--expand <fields>]
+`);
+}
+
+function printIssueTodoHelp() {
+  console.log(`Usage:
+  plane issue todo [--project <project-id>] [--state-group <group>] [--limit <n>] [--cursor <cursor>] [--order-by <field>] [--fields <fields>] [--expand <fields>]
+
+Defaults:
+  shows assigned work items without completed_at
+`);
+}
+
 async function runIssueLabelsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueLabelsHelp();
     return;
   }
 
@@ -567,7 +586,7 @@ async function runIssueCommentsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueCommentsHelp();
     return;
   }
 
@@ -686,7 +705,7 @@ async function runIssueActivitiesCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueActivitiesHelp();
     return;
   }
 
@@ -730,7 +749,7 @@ async function runIssueLinksCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueLinksHelp();
     return;
   }
 
@@ -902,7 +921,7 @@ async function runIssueRelationsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueRelationsHelp();
     return;
   }
 
@@ -983,7 +1002,7 @@ async function runIssueAttachmentsCommand(issueClient, args, context) {
   const [subcommand, ...rest] = args;
 
   if (!subcommand || subcommand === "--help" || subcommand === "-h" || subcommand === "help") {
-    printHelp();
+    printIssueAttachmentsHelp();
     return;
   }
 
@@ -1091,20 +1110,28 @@ export async function runIssueCommand(args, context) {
   }
 
   if (hasHelpFlag(rest)) {
+    if (subcommand === "mine") {
+      printIssueMineHelp();
+      return;
+    }
+    if (subcommand === "todo") {
+      printIssueTodoHelp();
+      return;
+    }
     if (subcommand === "labels") {
-      printIssueLabelsHelp();
+      await runIssueLabelsCommand(null, rest, context);
       return;
     }
     if (subcommand === "comments") {
-      printIssueCommentsHelp();
+      await runIssueCommentsCommand(null, rest, context);
       return;
     }
     if (subcommand === "activities") {
-      printIssueActivitiesHelp();
+      await runIssueActivitiesCommand(null, rest, context);
       return;
     }
     if (subcommand === "links") {
-      printIssueLinksHelp();
+      await runIssueLinksCommand(null, rest, context);
       return;
     }
     if (subcommand === "epic") {
@@ -1116,11 +1143,11 @@ export async function runIssueCommand(args, context) {
       return;
     }
     if (subcommand === "relations") {
-      printIssueRelationsHelp();
+      await runIssueRelationsCommand(null, rest, context);
       return;
     }
     if (subcommand === "attachments") {
-      printIssueAttachmentsHelp();
+      await runIssueAttachmentsCommand(null, rest, context);
       return;
     }
     printHelp();
@@ -1131,6 +1158,31 @@ export async function runIssueCommand(args, context) {
   const planeClient = new PlaneClient(config);
   const issueClient = new IssueClient(planeClient);
   const projectClient = new ProjectClient(planeClient);
+  const userClient = new UserClient(planeClient);
+
+  if (subcommand === "mine") {
+    const result = await listMyWorkItemsWithFallback(
+      issueClient,
+      projectClient,
+      userClient,
+      parseMyWorkItemArgs(rest, true)
+    );
+    printData(result, {
+      ...context.output,
+      render: renderIssueList,
+    });
+    return;
+  }
+
+  if (subcommand === "todo") {
+    const query = parseMyWorkItemArgs(rest, true);
+    const result = await listMyWorkItemsWithFallback(issueClient, projectClient, userClient, query, { todoOnly: true });
+    printData(result, {
+      ...context.output,
+      render: renderIssueList,
+    });
+    return;
+  }
 
   if (subcommand === "labels") {
     await runIssueLabelsCommand(issueClient, rest, context);

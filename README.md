@@ -9,6 +9,8 @@
 - 支持人类可读输出与结构化 JSON 输出
 - 支持我的工作项与项目工作项统计查询
 - 支持 `project` 查询、创建、更新、成员管理、features 开关
+- 支持 workspace invitations、stickies 的查询、创建、更新、删除
+- 支持 project states、cycles、modules、epics、milestones、intake 的查询、创建、更新、删除
 - 支持 `issue` 查询、创建、更新、labels、comments、activities、links、relations、attachments
 - 支持 `GAEA-25` 这类 issue key 自动解析
 
@@ -96,7 +98,15 @@ plane workspace current
 plane workspace ls
 plane workspace use <slug>
 plane workspace invitations ls
+plane workspace invitations get <invite-id>
+plane workspace invitations create --email user@example.com --role member
+plane workspace invitations update <invite-id> --role admin
+plane workspace invitations delete <invite-id> --confirm
 plane workspace stickies ls
+plane workspace stickies get <sticky-id>
+plane workspace stickies create --name "Note"
+plane workspace stickies update <sticky-id> --name "Updated Note"
+plane workspace stickies delete <sticky-id> --confirm
 ```
 
 ## 命令概览
@@ -126,34 +136,58 @@ plane project update <project-id> --description 'updated description'
 plane project members workspace
 plane project members ls --project <project-id>
 plane project members add --project <project-id> --member <user-id> --role member
+plane project members update --project <project-id> <member-id> --role admin
+plane project members delete --project <project-id> <member-id> --confirm
 
 plane project features get <project-id>
 plane project features set <project-id> --epics on --milestones on --auto-transition on
 plane project features enable-all <project-id>
 
 plane project states ls --project <project-id>
+plane project states get --project <project-id> <state-id>
 plane project states create --project <project-id> --name Review --color '#123456' --group started
+plane project states update --project <project-id> <state-id> --name "In Review"
+plane project states delete --project <project-id> <state-id> --confirm
 plane project cycles ls --project <project-id> --view current
+plane project cycles get --project <project-id> <cycle-id>
 plane project cycles create --project <project-id> --name Sprint-1 --start-date 2026-05-11 --end-date 2026-05-18
+plane project cycles update --project <project-id> <cycle-id> --name Sprint-2
+plane project cycles delete --project <project-id> <cycle-id> --confirm
 plane project cycles issues --project <project-id> --cycle <cycle-id>
 plane project modules ls --project <project-id>
+plane project modules get --project <project-id> <module-id>
 plane project modules create --project <project-id> --name Backend --start-date 2026-05-11 --end-date 2026-05-18
+plane project modules update --project <project-id> <module-id> --name API
+plane project modules delete --project <project-id> <module-id> --confirm
 plane project modules issues --project <project-id> --module <module-id>
 plane project epics ls --project <project-id>
+plane project epics get --project <project-id> <epic-id>
 plane project epics create --project <project-id> --name Release-Epic
+plane project epics update --project <project-id> <epic-id> --name Release
+plane project epics delete --project <project-id> <epic-id> --confirm
 plane project epics issues --project <project-id> --epic <epic-id>
 plane project milestones ls --project <project-id> --search release
+plane project milestones get --project <project-id> <milestone-id>
 plane project milestones create --project <project-id> --title Release-1
+plane project milestones update --project <project-id> <milestone-id> --title Release-2
+plane project milestones delete --project <project-id> <milestone-id> --confirm
 plane project intake ls --project <project-id>
+plane project intake get --project <project-id> <issue-id>
 plane project intake create --project <project-id> --name "Incoming request"
+plane project intake update --project <project-id> <issue-id> --status 1
+plane project intake delete --project <project-id> <issue-id> --confirm
 ```
 
 ### Issue / Work Item 命令
 
 `work-item` 是 `issue` 的别名。
 
+`issue mine` 会列出当前登录用户被指派的工作项；`issue todo` 会列出其中尚未完成的工作项。
+
 ```bash
 plane issue ls --project <project-id>
+plane issue mine
+plane issue todo
 plane issue get --project <project-id> <issue-id>
 plane issue get GAEA-25
 plane issue key GAEA-25
@@ -161,6 +195,7 @@ plane issue search --query login --workspace-search
 
 plane issue create --project <project-id> --name "First work item"
 plane issue update --project <project-id> <issue-id> --priority high
+plane issue delete --project <project-id> <issue-id> --confirm
 ```
 
 ### Issue Labels
@@ -259,7 +294,7 @@ plane issue attachments upload --help
 
 ## 限制说明
 
-- 当前不提供危险删除命令
+- 当前不提供 project/workspace 删除命令；其他资源删除必须显式传入 `--confirm`
 - 当前不自动回收服务端 API Token
 - `project members ls` 受限于 Plane `api/v1` 返回结构，仅返回用户资料，不包含完整的 `ProjectMember` 记录字段
 - `project members update/delete` 依赖 project-member 记录 ID；当前 Plane `api/v1` 的 list 响应不直接暴露该记录 ID，通常需要配合后端侧排查或额外 API 支持

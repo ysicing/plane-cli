@@ -1,4 +1,5 @@
 import { IssueClient } from "../api/issue-client.js";
+import { ProjectClient } from "../api/project-client.js";
 import { UserClient } from "../api/user-client.js";
 import { resolveRuntimeConfig } from "../core/config.js";
 import { CliError } from "../core/errors.js";
@@ -17,6 +18,23 @@ function renderMyProjectStats(data) {
     { label: "Completed", get: (row) => row.completed_total ?? "" },
     { label: "Overdue", get: (row) => row.overdue_total ?? "" },
   ]);
+}
+
+function rowsFromPage(data) {
+  return Array.isArray(data) ? data : data.results || [];
+}
+
+function isApiNotFound(error) {
+  return error instanceof CliError && /404 Not Found/.test(error.message);
+}
+
+function isApiForbidden(error) {
+  return error instanceof CliError && /403 Forbidden/.test(error.message);
+}
+
+export function isTodoWorkItem(item) {
+  const stateGroup = typeof item.state === "object" ? item.state?.group : item.state_group;
+  return !item.completed_at && !["completed", "cancelled"].includes(stateGroup);
 }
 
 export function buildMyWorkItemQuery(values) {
@@ -277,12 +295,216 @@ function renderAllWorkspaceSummary(summary) {
   }
 }
 
-async function listAllMyWorkItems(issueClient) {
+async function listAccessibleProjects(projectClient, projectId) {
+  if (projectId) {
+    return [{ id: projectId }];
+  }
+
+  const projects = [];
+  let cursor;
+
+  while (true) {
+    const page = await projectClient.list(
+      pickDefined({
+        per_page: 100,
+        cursor,
+      })
+    );
+
+    projects.push(...rowsFromPage(page));
+
+    if (!page.next_page_results || !page.next_cursor) {
+      break;
+    }
+
+    cursor = page.next_cursor;
+  }
+
+  return projects;
+}
+
+function filterAssignedWorkItems(items, userId, todoOnly) {
+  return items.filter((item) => {
+    const assignees = Array.isArray(item.assignees) ? item.assignees.map(String) : [];
+    return assignees.includes(String(userId)) && (!todoOnly || isTodoWorkItem(item));
+  });
+}
+
+function fallbackPage(results) {
+  return {
+    grouped_by: null,
+    sub_grouped_by: null,
+    total_count: results.length,
+    next_cursor: null,
+    prev_cursor: null,
+    next_page_results: false,
+    prev_page_results: false,
+    count: results.length,
+    total_pages: 1,
+    total_results: results.length,
+    extra_stats: null,
+    results,
+    fallback: "project-work-items",
+  };
+}
+
+function workItemStateGroup(item) {
+  return typeof item.state === "object" ? item.state?.group : item.state_group;
+}
+
+async function listProjectWorkItems(issueClient, projectId, options = {}) {
   const results = [];
   let cursor;
 
   while (true) {
-    const page = await issueClient.listMyWorkItems(
+    let page;
+    try {
+      page = await issueClient.list(
+        projectId,
+        pickDefined({
+          per_page: 200,
+          cursor,
+        })
+      );
+    } catch (error) {
+      if (options.skipForbidden && isApiForbidden(error)) {
+        return null;
+      }
+      throw error;
+    }
+
+    results.push(...rowsFromPage(page));
+
+    if (!page.next_page_results || !page.next_cursor) {
+      break;
+    }
+
+    cursor = page.next_cursor;
+  }
+
+  return results;
+}
+
+async function listMyWorkItemsFromProjects(issueClient, projectClient, userClient, query, todoOnly) {
+  const user = await userClient.me();
+  const projects = await listAccessibleProjects(projectClient, query.project_id);
+  const maxResults = Number.parseInt(query.per_page || "50", 10);
+  const results = [];
+
+  for (const project of projects) {
+    let cursor;
+
+    while (results.length < maxResults) {
+      let page;
+      try {
+        page = await issueClient.list(
+          project.id,
+          pickDefined({
+            per_page: Math.min(100, Math.max(maxResults * 2, 20)),
+            cursor,
+            order_by: query.order_by,
+            fields: query.fields,
+            expand: query.expand,
+          })
+        );
+      } catch (error) {
+        if (!query.project_id && isApiForbidden(error)) {
+          break;
+        }
+        throw error;
+      }
+
+      results.push(...filterAssignedWorkItems(rowsFromPage(page), user.id, todoOnly));
+
+      if (!page.next_page_results || !page.next_cursor) {
+        break;
+      }
+
+      cursor = page.next_cursor;
+    }
+
+    if (results.length >= maxResults) {
+      break;
+    }
+  }
+
+  return fallbackPage(results.slice(0, maxResults));
+}
+
+export async function listMyWorkItemsWithFallback(issueClient, projectClient, userClient, query, options = {}) {
+  const todoOnly = Boolean(options.todoOnly);
+
+  try {
+    const page = await issueClient.listMyWorkItems(query);
+    if (!todoOnly) {
+      return page;
+    }
+    return {
+      ...page,
+      results: rowsFromPage(page).filter(isTodoWorkItem),
+    };
+  } catch (error) {
+    if (!isApiNotFound(error)) {
+      throw error;
+    }
+    return listMyWorkItemsFromProjects(issueClient, projectClient, userClient, query, todoOnly);
+  }
+}
+
+export async function listMyProjectStatsWithFallback(issueClient, projectClient, userClient, query) {
+  try {
+    return await issueClient.listMyProjectWorkItemStats(query);
+  } catch (error) {
+    if (!isApiNotFound(error)) {
+      throw error;
+    }
+  }
+
+  const user = await userClient.me();
+  const projects = await listAccessibleProjects(projectClient, query.project_id);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const stats = [];
+  for (const project of projects) {
+    const items = await listProjectWorkItems(issueClient, project.id, { skipForbidden: !query.project_id });
+    if (!items) {
+      continue;
+    }
+    const isPending = (item) => !item.completed_at && workItemStateGroup(item) !== "cancelled";
+    const assignedItems = items.filter((item) =>
+      (Array.isArray(item.assignees) ? item.assignees.map(String) : []).includes(String(user.id))
+    );
+
+    stats.push({
+      project_id: project.id,
+      project_identifier: project.identifier || "",
+      project_name: project.name || "",
+      total: items.length,
+      assigned_total: assignedItems.length,
+      completed_total: items.filter((item) => item.completed_at || workItemStateGroup(item) === "completed").length,
+      pending_total: items.filter(isPending).length,
+      cancelled_total: items.filter((item) => workItemStateGroup(item) === "cancelled").length,
+      overdue_total: items.filter((item) => {
+        if (!item.target_date || !isPending(item)) return false;
+        return new Date(`${item.target_date}T00:00:00`) < today;
+      }).length,
+      fallback: "project-work-items",
+    });
+  }
+
+  return stats;
+}
+
+async function listAllMyWorkItems(issueClient, projectClient, userClient) {
+  const results = [];
+  let cursor;
+
+  while (true) {
+    const page = await listMyWorkItemsWithFallback(
+      issueClient,
+      projectClient,
+      userClient,
       pickDefined({
         per_page: 200,
         cursor,
@@ -307,8 +529,10 @@ async function buildWorkspaceSummary(config, workspace, now = new Date()) {
     workspace,
   });
   const issueClient = new IssueClient(planeClient);
-  const workItems = await listAllMyWorkItems(issueClient);
-  const projectStats = await issueClient.listMyProjectWorkItemStats({});
+  const projectClient = new ProjectClient(planeClient);
+  const userClient = new UserClient(planeClient);
+  const workItems = await listAllMyWorkItems(issueClient, projectClient, userClient);
+  const projectStats = await listMyProjectStatsWithFallback(issueClient, projectClient, userClient, {});
   return buildMeSummary(workItems, projectStats, now);
 }
 
@@ -321,7 +545,7 @@ function printHelp() {
 `);
 }
 
-function parseMyWorkItemArgs(args, includePagination) {
+export function parseMyWorkItemArgs(args, includePagination) {
   const parsed = parseCommandArgs(
     args,
     {
@@ -368,23 +592,34 @@ export async function runMeCommand(args, context) {
   const config = await resolveRuntimeConfig();
   const planeClient = new PlaneClient(config);
   const [subcommand, ...rest] = args;
+  const userClient = new UserClient(planeClient);
 
   if (!subcommand) {
-    const userClient = new UserClient(planeClient);
     printData(await userClient.me(), context.output);
     return;
   }
 
   const issueClient = new IssueClient(planeClient);
+  const projectClient = new ProjectClient(planeClient);
 
   if (subcommand === "work-items") {
-    const result = await issueClient.listMyWorkItems(parseMyWorkItemArgs(rest, true));
+    const result = await listMyWorkItemsWithFallback(
+      issueClient,
+      projectClient,
+      userClient,
+      parseMyWorkItemArgs(rest, true)
+    );
     printData(result, context.output);
     return;
   }
 
   if (subcommand === "project-stats") {
-    const result = await issueClient.listMyProjectWorkItemStats(parseMyWorkItemArgs(rest, false));
+    const result = await listMyProjectStatsWithFallback(
+      issueClient,
+      projectClient,
+      userClient,
+      parseMyWorkItemArgs(rest, false)
+    );
     printData(result, {
       ...context.output,
       render: renderMyProjectStats,
