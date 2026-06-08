@@ -1,6 +1,6 @@
 ---
 name: plane
-description: 管理 Plane 工作项与项目能力。当用户提到工作项标识（如 GAEA-30）或需要查询/维护 Plane 项目、工作项、评论、链接、关系、附件、成员、features 时使用。
+description: 管理 Plane 工作项与项目能力。当用户提到工作项标识（如 GAEA-30）或需要查询/维护 Plane 项目、工作项、评论、链接、关系、附件、成员、features、子工作项时使用。
 ---
 
 # Plane Skill
@@ -171,6 +171,7 @@ plane issue get GAEA-30 --json
 plane issue key GAEA-30 --json
 plane issue search --query login --workspace-search --json
 plane issue create --project <project-id> --name "First work item" --json
+plane issue create --parent GAEA-30 --name "Child work item" --json
 plane issue update --project <project-id> <issue-id> --priority high --json
 ```
 
@@ -227,6 +228,7 @@ plane project members workspace --json
 - `issue links ls/add/update`
 - `issue relations ls/add`
 - `issue attachments ls/upload`
+- `issue create --parent GAEA-30`
 
 ## 输出约定
 

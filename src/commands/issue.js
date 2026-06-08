@@ -322,8 +322,9 @@ function printHelp() {
   plane issue attachments upload GAEA-25 --file <path> [--name <filename>] [--type <mime>]
   plane issue attachments delete --project <project-id> <issue-id> <attachment-id> --confirm
   plane issue attachments delete GAEA-25 <attachment-id> --confirm
-  plane issue create --project <project-id> --name <name> [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
-  plane issue update --project <project-id> <issue-id> [--name <name>] [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
+  plane issue create --project <project-id> --name <name> [--parent <issue-id|PROJECT-123>] [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
+  plane issue create --parent GAEA-25 --name <name> [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
+  plane issue update --project <project-id> <issue-id> [--name <name>] [--parent <issue-id>] [--description-html <html>] [--state <state-id>] [--priority <value>] [--assignees <id-or-email1,id-or-email2>] [--labels <id1,id2>]
   plane issue delete --project <project-id> <issue-id> --confirm
 `);
 }
@@ -1353,16 +1354,26 @@ export async function runIssueCommand(args, context) {
       false
     );
 
-    ensureValue(parsed.values.project, "Project ID is required.");
     ensureValue(parsed.values.name, "Issue name is required.");
 
-    const payload = buildIssuePayload(parsed.values);
+    const values = { ...parsed.values };
+    let projectId = values.project;
+
+    if (values.parent && isIssueKey(values.parent)) {
+      const parentRef = await resolveIssueTarget(issueClient, undefined, values.parent);
+      values.parent = parentRef.issueId;
+      projectId = projectId || parentRef.projectId;
+    }
+
+    ensureValue(projectId, "Project ID is required.");
+
+    const payload = buildIssuePayload(values);
     if (payload.assignees) {
       const members = await projectClient.listWorkspaceMembers();
       payload.assignees = resolveAssigneeRefs(payload.assignees, members);
     }
 
-    const result = await issueClient.create(parsed.values.project, payload);
+    const result = await issueClient.create(projectId, payload);
     printData(result, context.output);
     return;
   }

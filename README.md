@@ -12,6 +12,7 @@
 - 支持 workspace invitations、stickies 的查询、创建、更新、删除
 - 支持 project states、cycles、modules、epics、milestones、intake 的查询、创建、更新、删除
 - 支持 `issue` 查询、创建、更新、labels、comments、activities、links、relations、attachments
+- 支持创建子工作项
 - 支持 `GAEA-25` 这类 issue key 自动解析
 
 ## 安装
@@ -184,6 +185,8 @@ plane project intake delete --project <project-id> <issue-id> --confirm
 
 `issue mine` 会列出当前登录用户被指派的工作项；`issue todo` 会列出其中尚未完成的工作项。
 
+创建子工作项时，在 `issue create` 上追加 `--parent` 即可。`--parent` 支持 `GAEA-25` 这类 key，并会自动解析父工作项与 project；如果传父工作项 UUID，则需要同时传 `--project`。
+
 ```bash
 plane issue ls --project <project-id>
 plane issue mine
@@ -194,6 +197,7 @@ plane issue key GAEA-25
 plane issue search --query login --workspace-search
 
 plane issue create --project <project-id> --name "First work item"
+plane issue create --parent GAEA-25 --name "Child work item"
 plane issue update --project <project-id> <issue-id> --priority high
 plane issue delete --project <project-id> <issue-id> --confirm
 ```
@@ -269,6 +273,7 @@ plane issue attachments delete GAEA-25 <attachment-id> --confirm
 - `issue milestone set/clear`
 - `issue relations ls/add`
 - `issue attachments ls/upload/delete`
+- `issue create --parent GAEA-25`
 
 ### 指定 Assignee
 

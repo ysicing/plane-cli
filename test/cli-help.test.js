@@ -44,6 +44,13 @@ test("nested action help keeps exact command context", () => {
   }
 });
 
+test("issue create help exposes parent option for child work items", () => {
+  const result = runPlane(["issue", "--help"]);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /plane issue create --project <project-id> --name <name> \[--parent <issue-id\|PROJECT-123>\]/);
+  assert.match(result.stdout, /plane issue create --parent GAEA-25 --name <name>/);
+});
+
 test("project delete command is not exposed", () => {
   const help = runPlane(["project", "--help"]);
   assert.equal(help.status, 0);

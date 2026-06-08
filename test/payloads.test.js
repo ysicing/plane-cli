@@ -185,6 +185,18 @@ test("buildIssuePayload maps csv options into arrays", () => {
   });
 });
 
+test("buildIssuePayload keeps parent for child work items", () => {
+  const payload = buildIssuePayload({
+    name: "Child issue",
+    parent: "parent-issue-id",
+  });
+
+  assert.deepEqual(payload, {
+    name: "Child issue",
+    parent: "parent-issue-id",
+  });
+});
+
 test("buildIssueLabelPayload keeps supported label fields only", () => {
   assert.deepEqual(
     buildIssueLabelPayload({
